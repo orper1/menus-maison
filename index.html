@@ -66,6 +66,7 @@ ul.check li.done span{text-decoration:line-through;color:var(--soft)}
 .empty{font-size:15px;color:var(--pinkInk);font-weight:700}
 .toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:var(--ink);color:#FFF6EC;padding:10px 16px;border-radius:999px;font-weight:800;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
+.sync{font-size:12px!important;margin-top:2px}.sync.ok{color:var(--mintInk)!important}.sync.ko{color:var(--pinkInk)!important}
 ul.plain{padding-left:20px}ul.plain li{font-size:17px;font-weight:700;line-height:1.5;margin:4px 0}
 .reset{display:block;margin:4px auto 0;background:none;border:2px solid var(--ink);border-radius:999px;padding:8px 16px;font:800 14px Nunito,sans-serif;color:var(--ink)}
 nav{position:fixed;left:0;right:0;bottom:0;background:#FFFDF8;border-top:3px solid var(--ink);display:flex;justify-content:center;gap:4px;padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
@@ -77,8 +78,9 @@ nav button.on{background:var(--pink);color:var(--pinkInk)}
 <body>
 <header>
 <svg viewBox="0 0 120 120" width="52" height="52" aria-hidden="true" id="logo"></svg>
-<div><h1 id="titre"></h1><p id="sous"></p></div>
+<div><h1 id="titre"></h1><p id="sous"></p><p id="sync" class="sync">Synchro…</p></div>
 </header>
+<div class="card" id="codeCard" style="display:none"><h3 class="sec">Code maison</h3><p class="dish" style="font-size:15px;margin-bottom:10px">Ouvre le lien partagé par Fabien, ou colle le code ici pour synchroniser les téléphones.</p><div class="add"><input id="codeInput" placeholder="Code maison"><button class="btn" id="codeBtn">Valider</button></div></div>
 <main>
 <section class="view on" id="v-menus"></section>
 <section class="view" id="v-courses"></section>
@@ -113,7 +115,10 @@ const D=window.MENU_DATA;
 const KEY='etat:'+D.titre;
 let S={cook:{},swap:{},pris:{},fini:{},extra:[]};
 try{S=Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(window.syncSave)window.syncSave(S)};
+window.SYNC_KEY=D.titre;
+window.applyRemote=data=>{if(!data)return;const typing=document.activeElement&&document.activeElement.id==='newItem';S=Object.assign({cook:{},swap:{},pris:{},fini:{},extra:[]},data);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}renderMenus();if(!typing)renderCourses()};
+window.getState=()=>S;
 const toast=t=>{const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1600)};
 document.getElementById('logo').innerHTML=ICONS.pot;
 document.getElementById('titre').textContent=D.titre;
@@ -181,6 +186,37 @@ renderMenus();renderCourses();
 document.querySelectorAll('nav button').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===btn));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+btn.dataset.v));window.scrollTo(0,0)});
 if(first!==null&&first>0)setTimeout(()=>document.getElementById('d'+first).scrollIntoView({block:'start'}),50);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyAGyeKLg5WdhMSB5dn_phmJ95PjggnyVxY",
+  authDomain: "menus-maison-9efcf.firebaseapp.com",
+  projectId: "menus-maison-9efcf",
+  storageBucket: "menus-maison-9efcf.firebasestorage.app",
+  messagingSenderId: "11264621459",
+  appId: "1:11264621459:web:85a3c65364316ddc854666"
+};
+const status = (t, cls) => { const el = document.getElementById('sync'); el.textContent = t; el.className = 'sync ' + (cls || ''); };
+// Le code maison vient du lien (#m=...) ou de la saisie, puis reste sur le téléphone. Il n'est jamais dans le dépôt.
+const m = new URLSearchParams(location.hash.slice(1)).get('m');
+if (m) { try { localStorage.setItem('maison', m) } catch (e) {} history.replaceState(null, '', location.pathname); }
+let code = null; try { code = localStorage.getItem('maison') } catch (e) {}
+const card = document.getElementById('codeCard');
+document.getElementById('codeBtn').onclick = () => { const v = document.getElementById('codeInput').value.trim(); if (!v) return; try { localStorage.setItem('maison', v) } catch (e) {} location.reload(); };
+if (!code) { card.style.display = 'block'; status('Pas synchronisé : code maison manquant', 'ko'); }
+else {
+  const db = getFirestore(initializeApp(firebaseConfig));
+  const ref = doc(db, 'maisons', code, 'etat', window.SYNC_KEY.replace(/[\/]/g, '-'));
+  let timer = null, first = true;
+  window.syncSave = S => { clearTimeout(timer); timer = setTimeout(() => setDoc(ref, JSON.parse(JSON.stringify(S))).then(() => status('Synchronisé ✓', 'ok')).catch(() => status('Hors ligne : sera envoyé plus tard', 'ko')), 400); };
+  onSnapshot(ref, snap => {
+    if (snap.exists()) window.applyRemote(snap.data());
+    else if (first) window.syncSave(window.getState());
+    first = false; status('Synchronisé ✓', 'ok');
+  }, () => { status('Code maison refusé ou hors ligne', 'ko'); card.style.display = 'block'; });
+}
 </script>
 </body>
 </html>
