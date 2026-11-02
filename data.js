@@ -1,4 +1,5 @@
 // Seul fichier à modifier à chaque nouvelle liste.
+// Courses : noms de produits sans quantité ni format (le choix se fait au drive selon prix et promos).
 // Dates au format AAAA-MM-JJ. "icon" : pot, pasta, fish, sausage, soup, suitcase, chicken, chili, roast.
 // altMidi / altSoir : recettes de rechange faites avec les mêmes courses.
 window.MENU_DATA = {
@@ -30,12 +31,12 @@ window.MENU_DATA = {
     { titre: "À acheter ailleurs", items: ["Œufs (en rupture au drive)", "Céleri branche, pour la bolo", "Salade (pas de sucrine au drive)"] }
   ],
   courses: [
-    { rayon: "Fruits et légumes", items: ["Grenailles 1,5 kg", "Carottes ~1 kg", "Oignons jaunes 3 kg", "Ail 250 g", "Tomates allongées ~500 g", "Concombre", "Champignons blancs 400 g", "Pommes Gala 2,6 kg", "Bananes 1 kg", "Oranges 2 kg"] },
-    { rayon: "Viande et poisson", items: ["Épaule de porc 1,9 kg", "Farce à légumes 450 g", "Steaks façon bouchère 15 % et 5 %", "Poulet jaune 1,5 kg", "Filet de saumon 600 g", "Chipolatas x12", "Jambon de Paris x10"] },
-    { rayon: "Surgelés", items: ["Haricots verts 1 kg", "Poireaux émincés bio 600 g", "Courgettes en rondelles 1 kg"] },
-    { rayon: "Crèmerie", items: ["Beurre moulé demi-sel 500 g", "Crème fraîche 15 % x2", "Emmental 500 g", "Yaourt grec nature x12", "Lait facile à digérer 6 × 1 L", "Pom'Potes x12"] },
-    { rayon: "Épicerie", items: ["Spaghetti Panzani 1 kg", "Penne Panzani 500 g", "Riz thaï 1 kg", "Lentilles blondes 500 g", "Purée en flocons 1 kg", "Haricots rouges x2", "Purée de tomates x2", "Épices chili", "Pain de mie complet", "Wraps"] },
-    { rayon: "Boissons", items: ["Volvic 8 L x2", "Ondine 6 × 1,5 L"] },
-    { rayon: "Maison", items: ["Tablettes lave-vaisselle Apta x20", "Carrés coton bio Pommette", "Maxi carrés Labell"] }
+    { rayon: "Fruits et légumes", items: ["Grenailles", "Carottes", "Oignons jaunes", "Ail", "Tomates", "Concombre", "Champignons blancs", "Pommes", "Bananes", "Oranges"] },
+    { rayon: "Viande et poisson", items: ["Épaule de porc", "Farce", "Steaks hachés façon bouchère", "Poulet jaune", "Filet de saumon", "Chipolatas", "Jambon de Paris"] },
+    { rayon: "Surgelés", items: ["Haricots verts", "Poireaux émincés", "Courgettes en rondelles"] },
+    { rayon: "Crèmerie", items: ["Beurre demi-sel Pâturages", "Crème fraîche", "Emmental", "Yaourt grec nature", "Lait facile à digérer", "Pom'Potes"] },
+    { rayon: "Épicerie", items: ["Spaghetti", "Penne", "Riz thaï", "Lentilles blondes", "Purée en flocons", "Haricots rouges", "Purée de tomates", "Épices chili", "Pain de mie complet", "Wraps"] },
+    { rayon: "Boissons", items: ["Volvic bonbonne", "Ondine"] },
+    { rayon: "Maison", items: ["Tablettes lave-vaisselle Apta", "Carrés de coton", "Maxi carrés de coton"] }
   ]
 };
