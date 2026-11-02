@@ -1,5 +1,5 @@
 // Réseau d'abord (menus toujours à jour), cache en secours hors ligne.
-const CACHE = 'menus-v2';
+const CACHE = 'menus-v3';
 const FILES = ['./', 'index.html', 'data.js', 'manifest.json', 'icon.svg'];
 
 self.addEventListener('install', e => {
@@ -12,6 +12,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  if (new URL(e.request.url).origin !== self.location.origin) return; // Firebase passe sans cache
   e.respondWith(
     fetch(e.request)
       .then(res => {
