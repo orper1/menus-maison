@@ -66,6 +66,13 @@ ul.check li.done span{text-decoration:line-through;color:var(--soft)}
 .empty{font-size:15px;color:var(--pinkInk);font-weight:700}
 .toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:var(--ink);color:#FFF6EC;padding:10px 16px;border-radius:999px;font-weight:800;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:800;color:var(--soft)}
+.form label.full{grid-column:1/-1}
+.form label.chk{grid-column:1/-1;flex-direction:row;align-items:center;gap:10px;font-size:15px;color:var(--ink)}
+.form input:not([type=checkbox]){border:2px solid var(--ink);border-radius:12px;padding:8px 10px;font:700 16px Nunito,sans-serif;background:#fff;color:var(--ink);width:100%;min-width:0}
+.form input[type=checkbox]{width:22px;height:22px;accent-color:#3B2A4A}
+.hint{font-size:13px;color:var(--soft);font-weight:700;margin-top:8px}
 .sync{font-size:12px!important;margin-top:2px}.sync.ok{color:var(--mintInk)!important}.sync.ko{color:var(--pinkInk)!important}
 ul.plain{padding-left:20px}ul.plain li{font-size:17px;font-weight:700;line-height:1.5;margin:4px 0}
 .reset{display:block;margin:4px auto 0;background:none;border:2px solid var(--ink);border-radius:999px;padding:8px 16px;font:800 14px Nunito,sans-serif;color:var(--ink)}
@@ -117,7 +124,7 @@ let S={cook:{},swap:{},pris:{},fini:{},extra:[]};
 try{S=Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(window.syncSave)window.syncSave(S)};
 window.SYNC_KEY=D.titre;
-window.applyRemote=data=>{if(!data)return;const typing=document.activeElement&&document.activeElement.id==='newItem';S=Object.assign({cook:{},swap:{},pris:{},fini:{},extra:[]},data);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}renderMenus();if(!typing)renderCourses()};
+window.applyRemote=data=>{if(!data)return;const ae=document.activeElement;const typing=ae&&ae.tagName==='INPUT'&&ae.closest('#v-courses');S=Object.assign({cook:{},swap:{},pris:{},fini:{},extra:[]},data);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}renderMenus();if(!typing)renderCourses()};
 window.getState=()=>S;
 const toast=t=>{const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1600)};
 document.getElementById('logo').innerHTML=ICONS.pot;
@@ -158,6 +165,17 @@ function renderCourses(){
   c+='<ul>'+fin.map(x=>'<li><span>'+esc(x.t)+'</span><button class="x" data-unfini="'+x.k+'" aria-label="Retirer">×</button></li>').join('')+S.extra.map((t,n)=>'<li><span>'+esc(t)+'</span><button class="x" data-unextra="'+n+'" aria-label="Retirer">×</button></li>').join('')+'</ul>';
   c+='<div class="add"><input id="newItem" placeholder="Ajouter (ex. huile d’olive)"><button class="btn" id="addBtn">Ajouter</button></div>';
   c+='<div class="row"><button class="btn" id="shareBtn">Partager la liste</button><button class="btn" id="clearBtn">Vider</button></div></div>';
+  const P=Object.assign({pers:3,jours:10,debut:'',budget:150,restes:true,abs:'',envies:''},S.params||{});
+  c+='<div class="card"><h3 class="sec">Nouveau menu</h3><div class="form">'+
+  '<label>Personnes<input type="number" min="1" id="pPers" value="'+esc(P.pers)+'"></label>'+
+  '<label>Jours<input type="number" min="1" id="pJours" value="'+esc(P.jours)+'"></label>'+
+  '<label>Début<input type="date" id="pDebut" value="'+esc(P.debut)+'"></label>'+
+  '<label>Budget frais (€)<input type="number" min="0" id="pBudget" value="'+esc(P.budget)+'"></label>'+
+  '<label class="full">Absences, repas dehors<input id="pAbs" placeholder="ex. week-end du 14" value="'+esc(P.abs)+'"></label>'+
+  '<label class="full">Envies, à éviter<input id="pEnvies" placeholder="ex. plus de poisson, pas de riz" value="'+esc(P.envies)+'"></label>'+
+  '<label class="chk"><input type="checkbox" id="pRestes"'+(P.restes?' checked':'')+'>Restes pour un midi adulte en semaine</label></div>'+
+  '<div class="row"><button class="btn" id="genBtn">Demander à Claude</button><button class="btn" id="genCopy">Copier la demande</button></div>'+
+  '<p class="hint">La demande inclut votre liste « À racheter » et les repas déjà cuisinés. Claude prépare les menus et le panier drive, puis met l’app à jour.</p></div>';
   D.courses.forEach((r,ri)=>{c+='<div class="card"><h3 class="sec">'+esc(r.rayon)+'</h3><ul class="check">';r.items.forEach((it,ii)=>{const k=ri+'-'+ii;c+='<li class="'+(S.pris[k]?'done':'')+'"><input type="checkbox" data-k="'+k+'" aria-label="Pris : '+esc(it)+'"'+(S.pris[k]?' checked':'')+'><span>'+esc(it)+'</span><button class="fini'+(S.fini[k]?' on':'')+'" data-fini="'+k+'">'+(S.fini[k]?'À racheter':'Plus en stock')+'</button></li>'});c+='</ul></div>'});
   c+='<button class="reset" id="reset">Tout décocher</button>';
   vc.innerHTML=c;
@@ -178,6 +196,21 @@ vc.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)r
     try{if(navigator.share){await navigator.share({title:'À racheter',text:txt})}else{await navigator.clipboard.writeText(txt);toast('Liste copiée')}}catch(err){try{await navigator.clipboard.writeText(txt);toast('Liste copiée')}catch(e2){}}}
 });
 vc.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='newItem')document.getElementById('addBtn').click()});
+const readP=()=>{const g=id=>document.getElementById(id);return {pers:+g('pPers').value||3,jours:+g('pJours').value||10,debut:g('pDebut').value,budget:+g('pBudget').value||0,restes:g('pRestes').checked,abs:g('pAbs').value.trim(),envies:g('pEnvies').value.trim()}};
+vc.addEventListener('change',e=>{if(/^p[A-Z]/.test(e.target.id||'')){S.params=readP();save()}});
+const demande=()=>{const P=readP();const items=[];D.courses.forEach((r,ri)=>r.items.forEach((it,ii)=>{if(S.fini[ri+'-'+ii])items.push(it)}));items.push(...S.extra);
+  const cooked=[];D.jours.forEach((j,i)=>['midi','soir'].forEach(m=>{const k=i+'-'+m;if(S.cook[k]){const o=[j[m]].concat(j[m==='midi'?'altMidi':'altSoir']||[]);cooked.push(o[S.swap[k]||0])}}));
+  const d=P.debut?P.debut.split('-').reverse().join('/'):'demain';
+  return 'Nouveau menu pour la maison (projet Maison, drive Intermarché Marquette-lez-Lille).\n'+
+  '- Personnes : '+P.pers+'\n- Durée : '+P.jours+' jours à partir du '+d+'\n- Budget frais : '+P.budget+' € (eau, lait et épicerie à part)\n'+
+  (P.restes?'- Midis en semaine : restes pour 1 adulte\n':'')+(P.abs?'- Absences : '+P.abs+'\n':'')+(P.envies?'- Envies / à éviter : '+P.envies+'\n':'')+
+  '\nÀ racheter : '+(items.length?items.join(', '):'rien de noté')+
+  '\nDéjà cuisiné et apprécié : '+(cooked.length?[...new Set(cooked)].join(', '):'—')+
+  '\n\nMêmes règles que d’habitude : prix au kilo, promos, marques Intermarché OK, pas de discount. Remplis le panier drive et mets à jour data.js de l’app.'};
+vc.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.id==='genBtn'){S.params=readP();save();window.open('https://claude.ai/new?q='+encodeURIComponent(demande()),'_blank')}
+  else if(b.id==='genCopy'){S.params=readP();save();try{await navigator.clipboard.writeText(demande());toast('Demande copiée')}catch(err){toast('Copie impossible')}}
+});
 
 let bb='';D.penseBete.forEach((p,i)=>{bb+='<div class="card"><div class="head">'+svg(i===0?'ice':'egg')+'<h2>'+esc(p.titre)+'</h2></div><ul class="plain">'+p.items.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>'});
 document.getElementById('v-bete').innerHTML=bb;
