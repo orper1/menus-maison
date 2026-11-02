@@ -87,7 +87,10 @@ ul.check li.done span{text-decoration:line-through;color:var(--soft)}
 .sheet-in{max-width:560px;margin:0 auto;padding:env(safe-area-inset-top) 16px 0;min-height:100%;display:flex;flex-direction:column}
 .sheet-top{position:sticky;top:0;z-index:2;background:var(--bg);display:flex;align-items:center;gap:10px;padding:14px 0 10px}
 .sheet-top h2{font-size:24px;flex:1}
-.back{width:44px;height:44px;border-radius:50%;border:3px solid var(--ink);background:#fff;font:800 22px Nunito,sans-serif;line-height:1}
+.back{display:flex;align-items:center;gap:2px;height:44px;padding:0 14px 0 6px;border-radius:999px;border:3px solid var(--ink);background:var(--pink);color:var(--ink);font:800 16px Nunito,sans-serif;flex:none}
+.back svg{width:26px;height:26px}
+.todo h2{flex:1}
+.todo .tally{font:800 13px Nunito,sans-serif;color:var(--mintInk);background:var(--mint);border-radius:999px;padding:3px 10px;flex:none}
 .field{margin:0 0 20px}
 .field p{font-size:15px;font-weight:800;margin-bottom:8px}
 .field p small{font-weight:700;color:var(--soft)}
@@ -110,6 +113,20 @@ ul.check li.done span{text-decoration:line-through;color:var(--soft)}
 .sheet-bot{position:sticky;bottom:0;margin-top:auto;background:var(--bg);padding:12px 0 calc(14px + env(safe-area-inset-bottom));display:flex;gap:8px}
 .big{flex:1;background:var(--ink);color:#FFF6EC;border:none;border-radius:999px;padding:15px;font:800 17px Nunito,sans-serif}
 .sheet-bot .btn{padding:0 16px}
+.splash{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;transition:opacity .35s}
+.splash.hide{opacity:0;pointer-events:none}
+.splash svg{width:210px;height:210px}
+.splash .pop{transform-box:fill-box;transform-origin:50% 100%;animation:pop .55s cubic-bezier(.34,1.56,.64,1) both}
+.splash .p0{transform-origin:center;animation-duration:.4s}.splash .p1{animation-delay:.25s}.splash .p2{animation-delay:.45s}.splash .p3{animation-delay:.7s}
+.splash p{font:600 22px Fredoka,Nunito,sans-serif;animation:pop .4s .9s both}
+.dots{display:inline-flex;gap:4px;margin-left:6px}.dots i{width:7px;height:7px;border-radius:50%;background:var(--ink);animation:dot 1s infinite}.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes pop{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes dot{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-5px);opacity:1}}
+@media (prefers-reduced-motion:reduce){.splash *{animation:none!important}}
+.ptr{position:fixed;left:50%;top:env(safe-area-inset-top);z-index:40;width:58px;height:58px;margin-left:-29px;border-radius:50%;overflow:hidden;background:#FFE3EC;border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);transform:translateY(-90px);transition:transform .25s ease;pointer-events:none}
+.ptr.drag{transition:none}.ptr img{width:100%;height:100%;display:block}
+.ptr.go img{animation:hop .5s ease-in-out infinite alternate}
+@keyframes hop{to{transform:translateY(-4px) scale(1.08)}}
 ul.plain{padding-left:20px}ul.plain li{font-size:17px;font-weight:700;line-height:1.5;margin:4px 0}
 .reset{display:block;margin:4px auto 0;background:none;border:2px solid var(--ink);border-radius:999px;padding:8px 16px;font:800 14px Nunito,sans-serif;color:var(--ink)}
 nav{position:fixed;left:0;right:0;bottom:0;background:#FFFDF8;border-top:3px solid var(--ink);display:flex;justify-content:center;gap:4px;padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
@@ -119,6 +136,42 @@ nav button.on{background:var(--pink);color:var(--pinkInk)}
 </style>
 </head>
 <body>
+<div class="splash" id="splash"><svg viewBox="0 0 512 512" aria-hidden="true">
+<circle class="pop p0" cx="256" cy="256" r="230" fill="#FFE3EC"/>
+<g transform="translate(28,-30) scale(0.89)">
+<g class="pop p2"><g transform="translate(330,250)">
+<rect x="-70" y="80" width="140" height="120" rx="60" fill="#9ED9C6"/>
+<circle cx="0" cy="10" r="78" fill="#FFE0C8"/>
+<path d="M-80 0 Q-82 -80 0 -82 Q82 -80 80 0 Q60 -40 20 -44 Q-10 -20 -40 -40 Q-66 -30 -80 0 Z" fill="#E0662B"/>
+<path d="M-62 40 Q0 110 62 40 Q48 76 0 80 Q-48 76 -62 40 Z" fill="#E0662B"/>
+<circle cx="-26" cy="14" r="8" fill="#3B2A4A"/><circle cx="26" cy="14" r="8" fill="#3B2A4A"/>
+<path d="M-12 36 Q0 46 12 36" stroke="#3B2A4A" stroke-width="6" fill="none" stroke-linecap="round"/>
+<ellipse cx="-46" cy="34" rx="11" ry="7" fill="#FF8FB1"/><ellipse cx="46" cy="34" rx="11" ry="7" fill="#FF8FB1"/>
+</g></g>
+<g class="pop p1"><g transform="translate(182,250)">
+<rect x="-70" y="80" width="140" height="120" rx="60" fill="#F7A8C4"/>
+<path d="M-86 10 Q-90 -86 0 -86 Q90 -86 86 10 L86 90 Q60 70 60 30 L-60 30 Q-60 70 -86 90 Z" fill="#5A3A2A"/>
+<circle cx="0" cy="12" r="76" fill="#FFE0C8"/>
+<path d="M-78 4 Q-74 -80 0 -80 Q74 -80 78 4 Q40 -30 -10 -36 Q-50 -30 -78 4 Z" fill="#5A3A2A"/>
+<circle cx="-28" cy="16" r="20" fill="none" stroke="#3B2A4A" stroke-width="6"/><circle cx="28" cy="16" r="20" fill="none" stroke="#3B2A4A" stroke-width="6"/>
+<path d="M-8 16 H8" stroke="#3B2A4A" stroke-width="6"/>
+<circle cx="-28" cy="16" r="7" fill="#3B2A4A"/><circle cx="28" cy="16" r="7" fill="#3B2A4A"/>
+<path d="M-12 46 Q0 56 12 46" stroke="#3B2A4A" stroke-width="6" fill="none" stroke-linecap="round"/>
+<ellipse cx="-50" cy="44" rx="10" ry="6" fill="#FF8FB1"/><ellipse cx="50" cy="44" rx="10" ry="6" fill="#FF8FB1"/>
+</g></g>
+<g class="pop p3"><g transform="translate(256,350)">
+<rect x="-56" y="62" width="112" height="100" rx="50" fill="#FFE08A"/>
+<ellipse cx="-74" cy="-8" rx="20" ry="34" fill="#E8A46A" transform="rotate(40 -74 -8)"/>
+<ellipse cx="74" cy="-8" rx="20" ry="34" fill="#E8A46A" transform="rotate(-40 74 -8)"/>
+<circle cx="0" cy="12" r="62" fill="#FFE8D6"/>
+<path d="M-64 6 Q-62 -62 0 -62 Q62 -62 64 6 Q36 -24 0 -26 Q-36 -24 -64 6 Z" fill="#E8A46A"/>
+<circle cx="-52" cy="-30" r="10" fill="#F7A8C4"/><circle cx="52" cy="-30" r="10" fill="#F7A8C4"/>
+<circle cx="-22" cy="16" r="7" fill="#3B2A4A"/><circle cx="22" cy="16" r="7" fill="#3B2A4A"/>
+<path d="M-10 34 Q0 43 10 34" stroke="#3B2A4A" stroke-width="5" fill="none" stroke-linecap="round"/>
+<ellipse cx="-38" cy="32" rx="9" ry="6" fill="#FF8FB1"/><ellipse cx="38" cy="32" rx="9" ry="6" fill="#FF8FB1"/>
+</g></g>
+</g>
+</svg><p>Menus maison<span class="dots"><i></i><i></i><i></i></span></p></div>
 <header>
 <svg viewBox="0 0 120 120" width="52" height="52" aria-hidden="true" id="logo"></svg>
 <div><h1 id="titre"></h1><p id="sous"></p><p id="sync" class="sync">Synchro…</p></div>
@@ -135,9 +188,11 @@ nav button.on{background:var(--pink);color:var(--pinkInk)}
 <button data-v="bete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>Pense-bête</button>
 </nav>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Nouveau menu"><div class="sheet-in" id="sheetIn"></div></div>
+<div class="ptr" id="ptr" aria-hidden="true"><img src="icon.svg" alt=""></div>
 <div class="toast" id="toast"></div>
 <script src="data.js"></script>
 <script>
+const T0=Date.now();window.hideSplash=()=>{if(window._sp)return;window._sp=1;setTimeout(()=>{const el=document.getElementById('splash');if(!el)return;el.classList.add('hide');setTimeout(()=>el.remove(),400)},Math.max(0,1500-(Date.now()-T0)))};setTimeout(()=>window.hideSplash(),3500);
 const FACE='<circle cx="46" cy="64" r="5" fill="#3B2A4A"/><circle cx="74" cy="64" r="5" fill="#3B2A4A"/><path d="M52 73 Q60 80 68 73" stroke="#3B2A4A" stroke-width="4" fill="none" stroke-linecap="round"/><ellipse cx="36" cy="74" rx="7" ry="4" fill="#FF8FB1"/><ellipse cx="84" cy="74" rx="7" ry="4" fill="#FF8FB1"/>';
 const f=(dx,dy)=>'<g transform="translate('+dx+','+dy+')">'+FACE+'</g>';
 const ICONS={
@@ -157,11 +212,11 @@ const svg=k=>'<svg viewBox="0 0 120 120" aria-hidden="true">'+(ICONS[k]||ICONS.p
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const D=window.MENU_DATA;
 const KEY='etat:'+D.titre;
-let S={cook:{},swap:{},pris:{},fini:{},extra:[]};
+let S={cook:{},swap:{},pris:{},fini:{},extra:[],beteFait:{},beteMoi:[]};
 try{S=Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(window.syncSave)window.syncSave(S)};
 window.SYNC_KEY=D.titre;
-window.applyRemote=data=>{if(!data)return;const ae=document.activeElement;const typing=ae&&ae.tagName==='INPUT'&&ae.closest('#v-courses');S=Object.assign({cook:{},swap:{},pris:{},fini:{},extra:[]},data);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}renderMenus();if(!typing)renderCourses()};
+window.applyRemote=data=>{if(!data)return;const ae=document.activeElement;const typing=ae&&ae.tagName==='INPUT'&&ae.closest('#v-courses,#v-bete');S=Object.assign({cook:{},swap:{},pris:{},fini:{},extra:[],beteFait:{},beteMoi:[]},data);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}renderMenus();if(!typing){renderCourses();renderBete()}};
 window.getState=()=>S;
 const toast=t=>{const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1600)};
 document.getElementById('logo').innerHTML=ICONS.pot;
@@ -244,7 +299,7 @@ function renderSheet(){
   const dates=[['Aujourd’hui',plusJ(0)],['Demain',plusJ(1)],['Lundi prochain',lundi()]];
   const known=dates.some(x=>x[1]===P.debut);
   const items=listeRachat(),cuis=dejaCuisine();
-  let h='<div class="sheet-top"><button class="back" id="closeSheet" aria-label="Fermer">‹</button><h2>Nouveau menu</h2></div>';
+  let h='<div class="sheet-top"><button class="back" id="closeSheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Retour</button><h2>Nouveau menu</h2></div>';
   h+='<div class="field duo"><div><p>Personnes</p><div class="stepper"><button data-step="pers" data-d="-1" aria-label="Moins">−</button><output>'+P.pers+'</output><button data-step="pers" data-d="1" aria-label="Plus">+</button></div></div>'+
      '<div><p>Jours</p><div class="stepper"><button data-step="jours" data-d="-1" aria-label="Moins">−</button><output>'+P.jours+'</output><button data-step="jours" data-d="1" aria-label="Plus">+</button></div></div></div>';
   h+='<div class="field"><p>On commence <small>· '+esc(joli(P.debut))+'</small></p><div class="chips">'+dates.map(x=>'<button class="chip'+(x[1]===P.debut&&!autreDate?' on':'')+'" data-date="'+x[1]+'">'+x[0]+'</button>').join('')+
@@ -289,12 +344,44 @@ sheet.addEventListener('click',async e=>{const b=e.target.closest('button');if(!
 sheet.addEventListener('input',e=>{if(e.target.id==='sEnvies')P.envies=e.target.value;else if(e.target.id==='sAbs')P.abs=e.target.value;else return;saveP()});
 sheet.addEventListener('change',e=>{if(e.target.id==='sDate'&&e.target.value){P.debut=e.target.value;saveP();renderSheet()}});
 
-let bb='';D.penseBete.forEach((p,i)=>{bb+='<div class="card"><div class="head">'+svg(i===0?'ice':'egg')+'<h2>'+esc(p.titre)+'</h2></div><ul class="plain">'+p.items.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>'});
-document.getElementById('v-bete').innerHTML=bb;
+// ---- Pense-bête en liste à cocher (synchronisée)
+const vb=document.getElementById('v-bete');
+const ligne=(fait,txt,attr,del)=>'<li class="'+(fait?'done':'')+'"><input type="checkbox" '+attr+(fait?' checked':'')+' aria-label="Fait : '+esc(txt)+'"><span>'+esc(txt)+'</span>'+(del||'')+'</li>';
+function renderBete(){
+  if(!S.beteFait)S.beteFait={};if(!Array.isArray(S.beteMoi))S.beteMoi=[];
+  const moi=S.beteMoi,nf=moi.filter(x=>x.f).length;
+  let h='<div class="card todo"><div class="head">'+svg('egg')+'<h2>Nos tâches</h2>'+(moi.length?'<span class="tally">'+nf+'/'+moi.length+'</span>':'')+'</div>';
+  if(!moi.length)h+='<p class="empty">Ajoute ce qu’il ne faut pas oublier.</p>';
+  h+='<ul class="check">'+moi.map((x,n)=>ligne(x.f,x.t,'data-moi="'+n+'"','<button class="x" data-delmoi="'+n+'" aria-label="Supprimer">×</button>')).join('')+'</ul>';
+  h+='<div class="add"><input id="newTache" placeholder="Ajouter (ex. sortir le poulet)"><button class="btn" id="addTache">Ajouter</button></div></div>';
+  D.penseBete.forEach((p,i)=>{const n=p.items.filter((x,j)=>S.beteFait[i+'-'+j]).length;
+    h+='<div class="card todo"><div class="head">'+svg(i===0?'ice':'egg')+'<h2>'+esc(p.titre)+'</h2><span class="tally">'+n+'/'+p.items.length+'</span></div><ul class="check">'+
+    p.items.map((x,j)=>ligne(S.beteFait[i+'-'+j],x,'data-bk="'+i+'-'+j+'"')).join('')+'</ul></div>'});
+  h+='<button class="reset" id="resetBete">Tout décocher</button>';
+  vb.innerHTML=h;
+}
+vb.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.bk){S.beteFait[t.dataset.bk]=t.checked}else if(t.dataset.moi){S.beteMoi[+t.dataset.moi].f=t.checked}else return;
+  save();renderBete()});
+vb.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.id==='addTache'){const v=document.getElementById('newTache').value.trim();if(!v){toast('Écris une tâche d’abord');return}S.beteMoi.push({t:v,f:false});save();renderBete()}
+  else if(b.dataset.delmoi){S.beteMoi.splice(+b.dataset.delmoi,1);save();renderBete()}
+  else if(b.id==='resetBete'){S.beteFait={};S.beteMoi.forEach(x=>x.f=false);save();renderBete()}
+});
+vb.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='newTache')document.getElementById('addTache').click()});
+renderBete();
 
 renderMenus();renderCourses();
 document.querySelectorAll('nav button').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===btn));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+btn.dataset.v));window.scrollTo(0,0)});
 if(first!==null&&first>0)setTimeout(()=>document.getElementById('d'+first).scrollIntoView({block:'start'}),50);
+// Tirer vers le bas pour rafraîchir (app installée ; Safari a déjà le sien)
+(()=>{const ptr=document.getElementById('ptr');const on=window.PTR_FORCE||navigator.standalone||matchMedia('(display-mode: standalone)').matches;if(!on)return;
+let y0=null,d=0;const MAX=120,GO=85;
+addEventListener('touchstart',e=>{y0=(scrollY<=0&&!sheet.classList.contains('open')&&!document.getElementById('splash'))?e.touches[0].clientY:null;d=0},{passive:true});
+addEventListener('touchmove',e=>{if(y0===null)return;d=Math.min(Math.max(0,(e.touches[0].clientY-y0)*.5),MAX);ptr.classList.add('drag');ptr.style.transform='translateY('+(d-80)+'px) scale('+(.6+d/300).toFixed(2)+')';ptr.classList.toggle('go',d>=GO)},{passive:true});
+addEventListener('touchend',()=>{if(y0===null)return;y0=null;ptr.classList.remove('drag');
+  if(d>=GO){ptr.classList.add('go');ptr.style.transform='translateY(24px)';setTimeout(()=>location.reload(),450)}else{ptr.style.transform=''}});
+})();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 <script type="module">
@@ -315,7 +402,7 @@ if (m) { try { localStorage.setItem('maison', m) } catch (e) {} history.replaceS
 let code = null; try { code = localStorage.getItem('maison') } catch (e) {}
 const card = document.getElementById('codeCard');
 document.getElementById('codeBtn').onclick = () => { const v = document.getElementById('codeInput').value.trim(); if (!v) return; try { localStorage.setItem('maison', v) } catch (e) {} location.reload(); };
-if (!code) { card.style.display = 'block'; status('Pas synchronisé : code maison manquant', 'ko'); }
+if (!code) { card.style.display = 'block'; status('Pas synchronisé : code maison manquant', 'ko'); window.hideSplash(); }
 else {
   const db = getFirestore(initializeApp(firebaseConfig));
   const ref = doc(db, 'maisons', code, 'etat', window.SYNC_KEY.replace(/[\/]/g, '-'));
@@ -324,8 +411,8 @@ else {
   onSnapshot(ref, snap => {
     if (snap.exists()) window.applyRemote(snap.data());
     else if (first) window.syncSave(window.getState());
-    first = false; status('Synchronisé ✓', 'ok');
-  }, () => { status('Code maison refusé ou hors ligne', 'ko'); card.style.display = 'block'; });
+    first = false; status('Synchronisé ✓', 'ok'); window.hideSplash();
+  }, () => { window.hideSplash(); status('Code maison refusé ou hors ligne', 'ko'); card.style.display = 'block'; });
 }
 </script>
 </body>
