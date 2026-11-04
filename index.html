@@ -295,7 +295,10 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-seg]');if(
 document.getElementById('fab').onclick=()=>{if(VIEW==='agenda'){if(SEG.agenda==='events')formEvent();else if(SEG.agenda==='rappels')formRappel();else formCantine()}else if(SEG.projets==='inspi')formInspi();else formProjet()};
 // ---------- Helpers menus / courses
 const listeRachat=()=>{const items=[];D.courses.forEach((r,ri)=>r.items.forEach((it,ii)=>{if(S.fini[ri+'-'+ii])items.push(it)}));return items.concat(S.extra)};
-const dejaCuisine=()=>{const out=[];D.jours.forEach((j,i)=>['midi','soir'].forEach(m=>{const k=i+'-'+m;if(S.cook[k]){const o=[j[m]].concat(j[m==='midi'?'altMidi':'altSoir']||[]);out.push(o[S.swap[k]||0])}}));return [...new Set(out)]};
+const repasListe=test=>{const out=[];D.jours.forEach((j,i)=>['midi','soir'].forEach(m=>{const k=i+'-'+m;if(!j[m]||j[m]==='—'||j.absent||/^restes?\b/i.test(j[m]))return;if(test(S.cook[k],j)){const o=[j[m]].concat(j[m==='midi'?'altMidi':'altSoir']||[]);out.push({k,t:o[S.swap[k]||0],j})}}));return out};
+const pasCuisine=()=>[...new Set(repasListe(v=>v==='non').map(x=>x.t))];
+const aConfirmer=()=>repasListe((v,j)=>v===undefined&&j.date<iso);
+const dejaCuisine=()=>{const out=[];D.jours.forEach((j,i)=>['midi','soir'].forEach(m=>{const k=i+'-'+m;if(S.cook[k]===true){const o=[j[m]].concat(j[m==='midi'?'altMidi':'altSoir']||[]);out.push(o[S.swap[k]||0])}}));return [...new Set(out)]};
 const platDu=(j,i,kind)=>{const base=j[kind];if(!base||base==='—')return null;const o=[base].concat(j[kind==='midi'?'altMidi':'altSoir']||[]);return {t:o[S.swap[i+'-'+kind]||0],cooked:!!S.cook[i+'-'+kind]}};
 // ---------- Rappels calculés (cantine à réserver, etc.)
 const semKey=v=>mondayOf(v);
@@ -308,6 +311,7 @@ function renderHome(){
   let h='';
   const al=cantineAlerte();if(al)h+='<div class="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg>'+al+'</div>';
   const dus=rappelsDus();if(dus.length)h+='<div class="alert" style="background:var(--butter);color:var(--butterInk)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 8a6 6 0 0 1 12 0v5l2 3H4l2-3z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>'+dus.length+' rappel'+(dus.length>1?'s':'')+' à faire : '+esc(dus.map(r=>r.t).slice(0,2).join(', '))+(dus.length>2?'…':'')+'</div>';
+  const ac=aConfirmer();if(ac.length)h+='<div class="card tint butter"><h3 class="sec">Vous avez cuisiné ? <span class="n">'+ac.length+'</span></h3><p class="howto" style="margin:0 0 6px;color:var(--butterInk)">Ce qui n’a pas été fait pourra être reproposé au prochain menu.</p>'+ac.map(x=>'<div class="line"><div class="t"><b>'+esc(x.t)+'</b><small>'+esc(x.j.label)+'</small></div><button class="btn sm" data-cook="'+x.k+'">✓ Oui</button><button class="btn sm ghost" data-nocook="'+x.k+'">✕ Non</button></div>').join('')+'</div>';
   // Repas du jour
   const ji=D.jours.findIndex(j=>j.date===iso);const j=D.jours[ji];
   let repas='';
@@ -333,15 +337,16 @@ function renderHome(){
   '</div>';
   document.getElementById('v-home').innerHTML=h;
 }
+document.addEventListener('click',e=>{const b=e.target.closest('[data-cook],[data-nocook]');if(!b)return;if(b.dataset.cook){const k=b.dataset.cook;S.cook[k]=S.cook[k]===true?undefined:true;if(S.cook[k]===undefined)delete S.cook[k]}else{const k=b.dataset.nocook;S.cook[k]=S.cook[k]==='non'?undefined:'non';if(S.cook[k]===undefined)delete S.cook[k]}save();render()});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(!b)return;const [v,k]=b.dataset.go.split('/');SEG[v]=k;document.querySelector('nav button[data-v='+v+']').click();render()});
 // ---------- REPAS
 let first=null;
 function meal(j,i,kind){
   const base=j[kind];if(!base||base==='—')return '<span class="pill '+kind+'">'+(kind==='midi'?'Midi':'Soir')+'</span><p class="dish">—</p>';
   const alts=j[kind==='midi'?'altMidi':'altSoir']||[];const opts=[base].concat(alts);
-  const k=i+'-'+kind;const sel=S.swap[k]||0;const cooked=!!S.cook[k];
-  let h='<span class="pill '+kind+'">'+(kind==='midi'?'Midi':'Soir')+'</span><p class="dish'+(cooked?' cooked':'')+'">'+(cooked?'✓ ':'')+esc(opts[sel]||base)+(sel?'<small>Changé (prévu : '+esc(base)+')</small>':'')+'</p>';
-  h+='<div class="acts"><button class="btn sm'+(cooked?' on':'')+'" data-cook="'+k+'">'+(cooked?'Cuisiné ✓':'Cuisiné ?')+'</button>';
+  const k=i+'-'+kind;const sel=S.swap[k]||0;const cooked=S.cook[k]===true,non=S.cook[k]==='non',past=j.date<iso&&S.cook[k]===undefined;
+  let h='<span class="pill '+kind+'">'+(kind==='midi'?'Midi':'Soir')+'</span>'+(past?'<span class="tag butter" style="margin-left:6px">À confirmer</span>':non?'<span class="tag pink" style="margin-left:6px">Pas fait</span>':'')+'<p class="dish'+(cooked||non?' cooked':'')+'">'+(cooked?'✓ ':non?'✕ ':'')+esc(opts[sel]||base)+(sel?'<small>Changé (prévu : '+esc(base)+')</small>':'')+'</p>';
+  h+='<div class="acts"><button class="btn sm'+(cooked?' on':'')+'" data-cook="'+k+'">'+(cooked?'Cuisiné ✓':'Cuisiné')+'</button><button class="btn sm'+(non?' on':' ghost')+'" data-nocook="'+k+'">'+(non?'Pas fait ✕':'Pas fait')+'</button>';
   if(alts.length)h+='<button class="btn sm ghost" data-toggle="'+k+'">Changer</button>';
   h+='</div>';
   if(alts.length)h+='<div class="alts" id="alts-'+k+'">'+opts.map((o,n)=>'<button class="alt'+(n===sel?' sel':'')+'" data-swap="'+k+'" data-n="'+n+'">'+(n===0?'Prévu : ':'')+esc(o)+'</button>').join('')+'</div>';
@@ -355,6 +360,8 @@ function renderRepas(){
     D.jours.forEach((j,i)=>{const past=j.date<iso;const isToday=j.date===iso;if(!past&&first===null)first=i;
     h+='<article class="card'+(isToday?' today':'')+(past?' past':'')+(j.absent?' tint butter':'')+'" id="d'+i+'"><div class="head">'+svg(j.icon)+'<div><h2>'+esc(j.label)+'</h2>'+(isToday?'<small>Aujourd’hui</small>':'')+'</div></div>'+
     (j.absent?'<span class="pill abs">Absents</span><p class="dish">'+esc(j.note||'')+'</p>':meal(j,i,'midi')+meal(j,i,'soir'))+'</article>'});
+    const nb=dejaCuisine().length,np=pasCuisine().length,na=aConfirmer().length;
+    h+='<div class="card tint lav"><h3 class="sec">Bilan du menu</h3><div class="row" style="margin-top:0"><span class="tag mint">'+nb+' cuisiné'+(nb>1?'s':'')+'</span><span class="tag pink">'+np+' pas fait'+(np>1?'s':'')+'</span><span class="tag butter">'+na+' à confirmer</span></div><p class="howto" style="margin:10px 0 0;color:var(--lavInk)">Les plats « pas faits » sont reproposés quand vous demandez le prochain menu.</p></div>';
   }else h+=coursesHtml();
   document.getElementById('v-repas').innerHTML=h;
 }
@@ -378,7 +385,6 @@ const vr=document.getElementById('v-repas');
 vr.addEventListener('change',e=>{const t=e.target;if(t.dataset.k){S.pris[t.dataset.k]=t.checked}else if(t.dataset.bk){S.beteFait[t.dataset.bk]=t.checked}else return;save();renderRepas()});
 vr.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
   if(b.id==='openMenu')formMenu();
-  else if(b.dataset.cook){S.cook[b.dataset.cook]=!S.cook[b.dataset.cook];save();render()}
   else if(b.dataset.toggle){document.getElementById('alts-'+b.dataset.toggle).classList.toggle('open')}
   else if(b.dataset.swap){S.swap[b.dataset.swap]=+b.dataset.n;save();render();toast('Recette changée')}
   else if(b.dataset.fini){const k=b.dataset.fini;S.fini[k]=!S.fini[k];save();render();if(S.fini[k])toast('Ajouté à « À racheter »')}
@@ -494,7 +500,7 @@ const TAGS=['Plus de poisson','Un soir végé','Rapide en semaine','Plats à con
 function formMenu(){
   const P=Object.assign({pers:3,jours:10,debut:'',budget:150,restes:true,abs:'',envies:'',tags:[]},M.params||S.params||{});if(!Array.isArray(P.tags))P.tags=[];if(!P.debut||P.debut<iso)P.debut=plusJ(1);let autre=false;
   const demande=()=>{const items=listeRachat(),cuis=dejaCuisine(),env=P.tags.concat(P.envies?[P.envies]:[]);
-    return 'Nouveau menu pour la maison (projet Maison, drive Intermarché Marquette-lez-Lille).\n- Personnes : '+P.pers+'\n- Durée : '+P.jours+' jours à partir du '+joli(P.debut)+'\n- Budget frais : '+P.budget+' € (eau, lait et épicerie à part)\n'+(P.restes?'- Midis en semaine : restes pour 1 adulte\n':'')+(P.abs?'- Absences : '+P.abs+'\n':'')+(env.length?'- Envies / à éviter : '+env.join(' ; ')+'\n':'')+'\nÀ racheter (plus à la maison) : '+(items.length?items.join(', '):'rien de noté')+'\nDéjà cuisiné cette période : '+(cuis.length?cuis.join(', '):'—')+'\n\nMêmes règles que d’habitude : prix au kilo, promos, marques Intermarché OK, pas de discount. Remplis le panier drive et mets à jour data.js de l’app.'};
+    return 'Nouveau menu pour la maison (projet Maison, drive Intermarché Marquette-lez-Lille).\n- Personnes : '+P.pers+'\n- Durée : '+P.jours+' jours à partir du '+joli(P.debut)+'\n- Budget frais : '+P.budget+' € (eau, lait et épicerie à part)\n'+(P.restes?'- Midis en semaine : restes pour 1 adulte\n':'')+(P.abs?'- Absences : '+P.abs+'\n':'')+(env.length?'- Envies / à éviter : '+env.join(' ; ')+'\n':'')+'\nÀ racheter (plus à la maison) : '+(items.length?items.join(', '):'rien de noté')+'\nDéjà cuisiné cette période : '+(cuis.length?cuis.join(', '):'—')+'\nPrévus mais pas cuisinés (à reproposer en priorité) : '+(pasCuisine().length?pasCuisine().join(', '):'—')+'\n\nMêmes règles que d’habitude : prix au kilo, promos, marques Intermarché OK, pas de discount. Remplis le panier drive et mets à jour data.js de l’app.'};
   const keep=()=>{M.params=JSON.parse(JSON.stringify(P));saveM()};
   openSheet({title:'Nouveau menu',body:()=>{const dates=[['Aujourd’hui',plusJ(0)],['Demain',plusJ(1)],['Lundi prochain',lundi()]];const known=dates.some(x=>x[1]===P.debut);const items=listeRachat(),cuis=dejaCuisine();
     return '<div class="field duo"><div><p>Personnes</p><div class="stepper"><button data-step="pers/-1">−</button><output>'+P.pers+'</output><button data-step="pers/1">+</button></div></div><div><p>Jours</p><div class="stepper"><button data-step="jours/-1">−</button><output>'+P.jours+'</output><button data-step="jours/1">+</button></div></div></div>'+
@@ -503,7 +509,7 @@ function formMenu(){
     F.sw('sRestes','Restes pour un midi adulte en semaine',P.restes)+
     '<div class="field"><p>Envies</p><div class="chips">'+TAGS.map(t=>'<button class="chip'+(P.tags.includes(t)?' on':'')+'" data-tag="'+esc(t)+'">'+esc(t)+'</button>').join('')+'</div><textarea id="sEnvies" rows="2" placeholder="Autre envie, ou à éviter (ex. pas de riz)" style="margin-top:10px">'+esc(P.envies)+'</textarea></div>'+
     F.area('sAbs','Absences, repas dehors',P.abs,'ex. absents le week-end du 14')+
-    '<div class="field recap"><b>Claude reçoit aussi :</b><br>• À racheter ('+items.length+') : '+(items.length?esc(items.join(', ')):'rien')+'<br>• Déjà cuisiné ('+cuis.length+') : '+(cuis.length?esc(cuis.join(', ')):'rien')+'</div>'+
+    '<div class="field recap"><b>Claude reçoit aussi :</b><br>• À racheter ('+items.length+') : '+(items.length?esc(items.join(', ')):'rien')+'<br>• Déjà cuisiné ('+cuis.length+') : '+(cuis.length?esc(cuis.join(', ')):'rien')+'<br>• Pas cuisiné, à reproposer ('+pasCuisine().length+') : '+(pasCuisine().length?esc(pasCuisine().join(', ')):'rien')+(aConfirmer().length?'<br><b>'+aConfirmer().length+' repas passés sans réponse</b> : dis sur l’accueil si vous les avez cuisinés.':'')+'</div>'+
     '<div class="sheet-bot"><button class="big" id="genBtn">Demander à Claude</button><button class="btn" id="genCopy">Copier</button></div>'},
   onClick:async b=>{if(b.dataset.step){const [k,d]=b.dataset.step.split('/');P[k]=Math.max(k==='budget'?0:1,(+P[k]||0)+(+d))}
     else if(b.dataset.date){if(b.dataset.date==='autre')autre=true;else{autre=false;P.debut=b.dataset.date}}
