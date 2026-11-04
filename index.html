@@ -91,6 +91,7 @@ nav button.on svg{color:var(--lavInk)}
 .tile b{font-size:16px;line-height:1.15;display:block}
 .tile small{font-size:13px;font-weight:700;opacity:.75;display:block;line-height:1.3}
 .tile .pill{margin:0;align-self:flex-start}
+.card.tap{cursor:pointer}.card.tap:active{transform:scale(.99)}.head .chev{font-size:24px;color:var(--soft);margin-left:auto;padding-left:8px}
 .alert{display:flex;align-items:center;gap:10px;background:var(--pink);border-radius:16px;padding:10px 12px;font-size:14px;font-weight:800;color:var(--pinkInk);margin-bottom:12px}
 .alert svg{width:22px;height:22px;flex:none}
 .line{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
@@ -318,10 +319,10 @@ function renderHome(){
   if(j&&j.absent)repas='<p class="dish">'+esc(j.note||'Absents aujourd’hui')+'</p>';
   else if(j){['midi','soir'].forEach(k=>{const p=platDu(j,ji,k);if(p)repas+='<span class="pill '+k+'">'+(k==='midi'?'Midi':'Ce soir')+'</span><p class="dish'+(p.cooked?' cooked':'')+'">'+(p.cooked?'✓ ':'')+esc(p.t)+'</p>'})}
   else repas='<p class="empty">Pas de menu prévu aujourd’hui. Onglet Repas → Nouveau menu.</p>';
-  h+='<div class="card"><div class="head">'+mascot('repas')+'<div><h2>Au menu</h2><small>'+esc(D.titre)+'</small></div></div>'+repas+'</div>';
+  h+='<div class="card tap" data-go="repas/menus" role="button"><div class="head">'+mascot('repas')+'<div><h2>Au menu</h2><small>'+esc(D.titre)+'</small></div><b class="chev">›</b></div>'+repas+'</div>';
   // Aujourd'hui
   const ev=eventsJour(iso),dem=eventsJour(plusJ(1));
-  h+='<div class="card"><div class="head">'+mascot('agenda')+'<div><h2>Aujourd’hui</h2><small>'+(ev.length?ev.length+' événement'+(ev.length>1?'s':''):'Rien de prévu')+'</small></div></div>';
+  h+='<div class="card tap" data-go="agenda/events" role="button"><div class="head">'+mascot('agenda')+'<div><h2>Aujourd’hui</h2><small>'+(ev.length?ev.length+' événement'+(ev.length>1?'s':''):'Rien de prévu')+'</small></div><b class="chev">›</b></div>';
   h+=ev.map(e=>evLine(e)).join('');
   if(dem.length)h+='<p class="howto" style="margin:10px 0 0"><b>Demain :</b> '+esc(dem.map(e=>(e.heure?e.heure+' ':'')+e.t).join(' · '))+'</p>';
   const cj=cantineJour(iso);if(cj)h+='<div class="row" style="margin-top:10px">'+cj+'</div>';
@@ -338,7 +339,7 @@ function renderHome(){
   document.getElementById('v-home').innerHTML=h;
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-cook],[data-nocook]');if(!b)return;if(b.dataset.cook){const k=b.dataset.cook;S.cook[k]=S.cook[k]===true?undefined:true;if(S.cook[k]===undefined)delete S.cook[k]}else{const k=b.dataset.nocook;S.cook[k]=S.cook[k]==='non'?undefined:'non';if(S.cook[k]===undefined)delete S.cook[k]}save();render()});
-document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(!b)return;const [v,k]=b.dataset.go.split('/');SEG[v]=k;document.querySelector('nav button[data-v='+v+']').click();render()});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(!b)return;const inner=e.target.closest('button');if(inner&&inner!==b)return;const [v,k]=b.dataset.go.split('/');SEG[v]=k;document.querySelector('nav button[data-v='+v+']').click();render()});
 // ---------- REPAS
 let first=null;
 function meal(j,i,kind){
