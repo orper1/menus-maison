@@ -91,7 +91,7 @@ nav button.on svg{color:var(--lavInk)}
 .tile b{font-size:16px;line-height:1.15;display:block}
 .tile small{font-size:13px;font-weight:700;opacity:.75;display:block;line-height:1.3}
 .tile .pill{margin:0;align-self:flex-start}
-.card.tap{cursor:pointer}.card.tap:active{transform:scale(.99)}.head .chev{font-size:24px;color:var(--soft);margin-left:auto;padding-left:8px}
+.card.tap{cursor:pointer;display:block}button.card.tap{font:inherit;color:inherit}.card.tap:active{transform:scale(.99)}.head .chev{font-size:24px;color:var(--soft);margin-left:auto;padding-left:8px}
 .alert{display:flex;align-items:center;gap:10px;background:var(--pink);border-radius:16px;padding:10px 12px;font-size:14px;font-weight:800;color:var(--pinkInk);margin-bottom:12px}
 .alert svg{width:22px;height:22px;flex:none}
 .line{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
@@ -274,7 +274,7 @@ const dowFR=v=>(new Date(v+'T12:00:00').getDay()+6)%7;
 const D=window.MENU_DATA;
 const KEY='etat:'+D.titre,KEYM='maison:etat';
 const S0=()=>({cook:{},swap:{},pris:{},fini:{},extra:[],beteFait:{},beteMoi:[]});
-const M0=()=>({projets:[],budget:{revenus:0,charges:[],epargne:0,parMois:0},events:[],rappels:[],cantine:{enfant:'',limite:3,sem:{}},params:{}});
+const M0=()=>({projets:[],budget:{revenus:0,charges:[],epargne:0,parMois:0},events:[],rappels:[],cantine:{enfant:'',jusqu:'',marge:7},params:{}});
 let S=S0(),M=M0();
 try{S=Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 try{M=deep(M0(),JSON.parse(localStorage.getItem(KEYM)||'{}'))}catch(e){}
@@ -287,13 +287,13 @@ window.applyRemote=data=>{if(!data)return;S=Object.assign(S0(),data);try{localSt
 window.applyRemoteM=data=>{if(!data)return;M=deep(M0(),data);try{localStorage.setItem(KEYM,JSON.stringify(M))}catch(e){}if(!typing()&&!sheet.classList.contains('open'))render()};
 const toast=t=>{const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1600)};
 // ---------- Navigation + segments
-let VIEW='home';const SEG={repas:'menus',agenda:'events',projets:'liste'};
+let VIEW='home';const SEG={repas:'menus',agenda:'events'};
 const seg=(v,opts)=>'<div class="seg">'+opts.map(([k,l])=>'<button data-seg="'+v+'/'+k+'" class="'+(SEG[v]===k?'on':'')+'">'+l+'</button>').join('')+'</div>';
 function render(){renderHome();renderRepas();renderAgenda();renderProjets();updateFab()}
-function updateFab(){const fab=document.getElementById('fab');const on=(VIEW==='agenda')||(VIEW==='projets'&&SEG.projets!=='budget');fab.classList.toggle('show',on);document.body.style.paddingBottom=on?'calc(160px + env(safe-area-inset-bottom))':''}
+function updateFab(){const fab=document.getElementById('fab');const on=(VIEW==='agenda')||(VIEW==='projets');fab.classList.toggle('show',on);document.body.style.paddingBottom=on?'calc(160px + env(safe-area-inset-bottom))':''}
 document.querySelectorAll('nav button').forEach(btn=>btn.onclick=()=>{VIEW=btn.dataset.v;document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===btn));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+VIEW));updateFab();window.scrollTo(0,0);if(VIEW==='repas'&&SEG.repas==='menus'&&first)setTimeout(()=>{const el=document.getElementById('d'+first);if(el)el.scrollIntoView({block:'start'})},30)});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-seg]');if(!b)return;const [v,k]=b.dataset.seg.split('/');SEG[v]=k;render()});
-document.getElementById('fab').onclick=()=>{if(VIEW==='agenda'){if(SEG.agenda==='events')formEvent();else if(SEG.agenda==='rappels')formRappel();else formCantine()}else if(SEG.projets==='inspi')formInspi();else formProjet()};
+document.getElementById('fab').onclick=()=>{if(VIEW==='agenda'){if(SEG.agenda==='events')formEvent();else formRappel()}else formProjet()};
 // ---------- Helpers menus / courses
 const listeRachat=()=>{const items=[];D.courses.forEach((r,ri)=>r.items.forEach((it,ii)=>{if(S.fini[ri+'-'+ii])items.push(it)}));return items.concat(S.extra)};
 const repasListe=test=>{const out=[];D.jours.forEach((j,i)=>['midi','soir'].forEach(m=>{const k=i+'-'+m;if(!j[m]||j[m]==='—'||j.absent||/^restes?\b/i.test(j[m]))return;if(test(S.cook[k],j)){const o=[j[m]].concat(j[m==='midi'?'altMidi':'altSoir']||[]);out.push({k,t:o[S.swap[k]||0],j})}}));return out};
@@ -303,7 +303,9 @@ const dejaCuisine=()=>{const out=[];D.jours.forEach((j,i)=>['midi','soir'].forEa
 const platDu=(j,i,kind)=>{const base=j[kind];if(!base||base==='—')return null;const o=[base].concat(j[kind==='midi'?'altMidi':'altSoir']||[]);return {t:o[S.swap[i+'-'+kind]||0],cooked:!!S.cook[i+'-'+kind]}};
 // ---------- Rappels calculés (cantine à réserver, etc.)
 const semKey=v=>mondayOf(v);
-const cantineAlerte=()=>{const c=M.cantine;const next=semKey(plusJ(7));const dow=dowFR(iso);const s=c.sem[next];if(dow>=(c.limite||3)&&!(s&&s.ok))return 'Réserver la cantine et la garderie de la semaine prochaine';return null};
+const cantineAlerte=()=>{const c=M.cantine;if(!c.jusqu)return null;const marge=+c.marge||7;if(c.jusqu<plusJ(marge))return (c.enfant?c.enfant+' : ':'')+'cantine et garderie réservées jusqu’au '+court(c.jusqu)+' seulement';return null};
+const cantineResume=()=>{const c=M.cantine;if(!c.jusqu)return 'À renseigner';if(c.jusqu<iso)return 'Expiré le '+court(c.jusqu);return 'Jusqu’au '+court(c.jusqu)};
+
 const rappelsDus=()=>M.rappels.filter(r=>!r.fait&&r.date&&r.date<=iso).sort((a,b)=>a.date<b.date?-1:1);
 const eventsJour=v=>M.events.filter(e=>e.date===v).sort((a,b)=>(a.heure||'')<(b.heure||'')?-1:1);
 // ---------- ACCUEIL
@@ -325,21 +327,20 @@ function renderHome(){
   h+='<div class="card tap" data-go="agenda/events" role="button"><div class="head">'+mascot('agenda')+'<div><h2>Aujourd’hui</h2><small>'+(ev.length?ev.length+' événement'+(ev.length>1?'s':''):'Rien de prévu')+'</small></div><b class="chev">›</b></div>';
   h+=ev.map(e=>evLine(e)).join('');
   if(dem.length)h+='<p class="howto" style="margin:10px 0 0"><b>Demain :</b> '+esc(dem.map(e=>(e.heure?e.heure+' ':'')+e.t).join(' · '))+'</p>';
-  const cj=cantineJour(iso);if(cj)h+='<div class="row" style="margin-top:10px">'+cj+'</div>';
   h+='</div>';
   // Tuiles
   const rach=listeRachat().length,projs=M.projets.filter(p=>p.statut!=='fait'),top=projs.sort((a,b)=>(b.prio||0)-(a.prio||0))[0];
   const bud=budgetCalc();
   h+='<div class="tiles">'+
   '<button class="tile" style="background:var(--butter)" data-go="repas/courses">'+mascot('courses')+'<span><b>Courses</b><small>'+(rach?rach+' à racheter':'Rien à racheter')+'</small></span></button>'+
-  '<button class="tile" style="background:var(--lav)" data-go="projets/liste">'+mascot('projets')+'<span><b>Projets</b><small>'+(top?'Priorité : '+esc(top.t):projs.length+' en cours')+'</small></span></button>'+
-  '<button class="tile" style="background:var(--sky)" data-go="agenda/cantine">'+mascot('cantine')+'<span><b>Cantine</b><small>'+cantineResume()+'</small></span></button>'+
-  '<button class="tile" style="background:var(--mint)" data-go="projets/budget">'+mascot('budget')+'<span><b>Budget</b><small>'+(bud.ok?'Reste à vivre '+eur(bud.reste):'À remplir')+'</small></span></button>'+
+  '<button class="tile" style="background:var(--lav)" data-go="projets/x">'+mascot('projets')+'<span><b>Projets</b><small>'+(top?'Priorité : '+esc(top.t):projs.length+' en cours')+'</small></span></button>'+
+  '<button class="tile" id="tileCant" style="background:var(--sky)">'+mascot('cantine')+'<span><b>Cantine</b><small>'+esc(cantineResume())+'</small></span></button>'+
+  '<button class="tile" style="background:var(--mint)" data-go="projets/x">'+mascot('budget')+'<span><b>Budget</b><small>'+(bud.ok?'Reste à vivre '+eur(bud.reste):'À remplir')+'</small></span></button>'+
   '</div>';
   document.getElementById('v-home').innerHTML=h;
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-cook],[data-nocook]');if(!b)return;if(b.dataset.cook){const k=b.dataset.cook;S.cook[k]=S.cook[k]===true?undefined:true;if(S.cook[k]===undefined)delete S.cook[k]}else{const k=b.dataset.nocook;S.cook[k]=S.cook[k]==='non'?undefined:'non';if(S.cook[k]===undefined)delete S.cook[k]}save();render()});
-document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(!b)return;const inner=e.target.closest('button');if(inner&&inner!==b)return;const [v,k]=b.dataset.go.split('/');SEG[v]=k;document.querySelector('nav button[data-v='+v+']').click();render()});
+document.addEventListener('click',e=>{if(e.target.closest('#tileCant')){formCantine();return}const b=e.target.closest('[data-go]');if(!b)return;const inner=e.target.closest('button');if(inner&&inner!==b)return;const [v,k]=b.dataset.go.split('/');if(SEG[v]!==undefined)SEG[v]=k;document.querySelector('nav button[data-v='+v+']').click();render()});
 // ---------- REPAS
 let first=null;
 function meal(j,i,kind){
@@ -402,88 +403,66 @@ vr.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='newItem')do
 // ---------- AGENDA
 const evLine=e=>'<div class="line"><div class="d">'+(e.heure?'<b style="font-size:14px">'+esc(e.heure)+'</b>':'<b>·</b>')+'</div><div class="t"><b>'+esc(e.t)+'</b>'+(e.lieu||e.note?'<small>'+esc([e.lieu,e.note].filter(Boolean).join(' · '))+'</small>':'')+'</div>'+(e.ios?'<span class="tag sky">iPhone</span>':'<button class="btn sm ghost" data-edit-ev="'+e.id+'">Modifier</button>')+'</div>';
 function renderAgenda(){
-  let h=seg('agenda',[['events','Agenda'],['rappels','Rappels'],['cantine','Cantine']]);
+  let h=seg('agenda',[['events','Agenda'],['rappels','Rappels']]);
   if(SEG.agenda==='events'){
     const evs=M.events.filter(e=>e.date>=iso).sort((a,b)=>(a.date+(a.heure||''))<(b.date+(b.heure||''))?-1:1);
     if(!evs.length)h+='<div class="card"><div class="head">'+mascot('agenda')+'<div><h2>Rien de prévu</h2><small>Ajoute un événement avec le bouton +.</small></div></div></div>';
     let cur='';evs.forEach(e=>{if(e.date!==cur){if(cur)h+='</div>';cur=e.date;h+='<div class="card'+(e.date===iso?' today':'')+'"><h3 class="sec">'+court(e.date).replace(/^./,c=>c.toUpperCase())+(e.date===iso?'<span class="n">Aujourd’hui</span>':e.date===plusJ(1)?'<span class="n">Demain</span>':'')+'</h3>'}h+=evLine(e)});if(cur)h+='</div>';
     const passes=M.events.filter(e=>e.date<iso).length;if(passes)h+='<button class="reset" id="purgeEv">Effacer les '+passes+' événements passés</button>';
+    h+=cantineCard();
     h+='<div class="card tint sky" style="margin-top:14px"><h3 class="sec">Calendrier iPhone</h3><p class="howto" style="margin:0;color:var(--skyInk)">Chaque événement a un bouton « Mettre dans l’iPhone » qui l’ajoute au calendrier iOS, avec un rappel. Dans l’autre sens (lire le calendrier iPhone ici), c’est l’étape 2 : un raccourci iOS qui envoie vos événements à l’app.</p></div>';
-  }else if(SEG.agenda==='rappels'){
+  }else{
     const rs=M.rappels.slice().sort((a,b)=>(a.fait-b.fait)||((a.date||'9')<(b.date||'9')?-1:1));
     if(!rs.length)h+='<div class="card"><div class="head">'+mascot('rappels')+'<div><h2>Aucun rappel</h2><small>Ajoute-en un avec le bouton +.</small></div></div></div>';
     else{h+='<div class="card">'+rs.map(r=>{const late=!r.fait&&r.date&&r.date<iso;const isT=r.date===iso;return '<div class="line'+(late?' late':'')+(r.fait?' done':'')+'"><button class="cb'+(r.fait?' on':'')+'" data-fait="'+r.id+'" aria-label="Fait"></button><div class="t"><b>'+esc(r.t)+'</b><small>'+(r.date?(late?'En retard · ':isT?'Aujourd’hui · ':'')+court(r.date):'Sans date')+(r.rep?' · '+({j:'chaque jour',s:'chaque semaine',m:'chaque mois'})[r.rep]:'')+'</small></div><button class="btn sm ghost" data-edit-rap="'+r.id+'">Modifier</button></div>'}).join('')+'</div>';
       if(rs.some(r=>r.fait))h+='<button class="reset" id="purgeRap">Effacer les rappels faits</button>'}
-  }else h+=cantineHtml();
+  }
   document.getElementById('v-agenda').innerHTML=h;
 }
-function cantineJour(v){const c=M.cantine,s=c.sem[semKey(v)],dw=dowFR(v);if(dw>4||!s||!s.d||!s.d[dw])return '';const d=s.d[dw];const out=[];if(d.c)out.push('<span class="tag sky">Cantine</span>');if(d.m)out.push('<span class="tag lav">Garderie matin</span>');if(d.s)out.push('<span class="tag lav">Garderie soir</span>');return out.length?out.join(''):'<span class="tag" style="background:var(--seg);color:var(--soft)">Pas de cantine</span>'}
-function cantineResume(){const c=M.cantine;const n=semKey(plusJ(7)),s=c.sem[n];const cur=c.sem[semKey(iso)];if(!cur&&!s)return 'À planifier';return (s&&s.ok)?'Semaine prochaine réservée':'Semaine prochaine à réserver'}
-let WK=semKey(iso);
-function cantineHtml(){
-  const c=M.cantine;const s=c.sem[WK]||{d:{},ok:false};const isCur=WK===semKey(iso);
-  let h='<div class="card"><div class="head">'+mascot('cantine')+'<div><h2>'+(c.enfant?esc(c.enfant):'Cantine & garderie')+'</h2><small>'+(c.enfant?'Cantine & garderie':'Prénom à régler dans les réglages')+'</small></div><button class="btn sm ghost" id="cantSet">Réglages</button></div>';
-  h+='<div class="wk"><button data-wk="-7" aria-label="Semaine précédente">‹</button><b>'+(isCur?'Cette semaine':WK===semKey(plusJ(7))?'Semaine prochaine':'Semaine du '+court(WK))+'<br><small style="color:var(--soft);font-weight:700">'+court(WK)+' → '+court(addD(WK,4))+'</small></b><button data-wk="7" aria-label="Semaine suivante">›</button></div>';
-  h+='<div class="grid"><span></span><span class="h">Cantine</span><span class="h">Garderie matin</span><span class="h">Garderie soir</span>';
-  for(let i=0;i<5;i++){const v=addD(WK,i),d=(s.d||{})[i]||{};h+='<span class="dj'+(v===iso?' today':'')+'">'+JOURS[i]+'<small>'+v.slice(8)+'/'+v.slice(5,7)+'</small></span>'+['c','m','s'].map(k=>'<button data-cant="'+i+'/'+k+'" class="'+(d[k]?'on':'')+'">'+(d[k]?'✓':'–')+'</button>').join('')}
-  h+='</div>';
-  h+='<div class="row"><button class="btn sm ghost" data-cantall="c">Cantine toute la semaine</button><button class="btn sm ghost" data-cantall="s">Garderie soir toute la semaine</button></div>';
-  h+='<div style="margin-top:12px"><button class="switch'+(s.ok?' on':'')+'" id="cantOk"><span>Réservation faite sur le portail</span><i></i></button></div></div>';
-  h+='<p class="howto">Un rappel apparaît sur l’accueil à partir du <b>'+JOURS[c.limite||3].toLowerCase()+'</b> tant que la semaine suivante n’est pas marquée réservée. Les réservations se font sur le portail de la mairie, l’app sert de mémo partagé.</p>';
-  return h;
-}
+function cantineCard(){const c=M.cantine;const ko=!c.jusqu||c.jusqu<plusJ(+c.marge||7);
+  return '<div class="card tap'+(ko?' tint butter':'')+'" data-cant="1" role="button" style="margin-top:14px"><div class="head">'+mascot('cantine')+'<div><h2>Cantine &amp; garderie</h2><small'+(ko?' style="color:var(--butterInk)"':'')+'>'+(c.enfant?esc(c.enfant)+' · ':'')+esc(cantineResume())+'</small></div><b class="chev">›</b></div></div>'}
+
+
 const va=document.getElementById('v-agenda');
-va.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+va.addEventListener('click',e=>{const b=e.target.closest('button,[data-cant]');if(!b)return;
+  if(b.dataset.cant){formCantine();return}
   if(b.dataset.fait){const r=M.rappels.find(x=>x.id===b.dataset.fait);r.fait=!r.fait;if(r.fait&&r.rep&&r.date){const n={j:1,s:7,m:30}[r.rep];r.fait=false;r.date=addD(r.date<iso?iso:r.date,n);toast('Reporté au '+court(r.date))}saveM();render()}
   else if(b.id==='purgeEv'){M.events=M.events.filter(x=>x.date>=iso);saveM();render()}
   else if(b.id==='purgeRap'){M.rappels=M.rappels.filter(x=>!x.fait);saveM();render()}
-  else if(b.dataset.wk){WK=addD(WK,+b.dataset.wk);renderAgenda()}
-  else if(b.dataset.cant){const [i,k]=b.dataset.cant.split('/');const s=M.cantine.sem[WK]=M.cantine.sem[WK]||{d:{},ok:false};s.d[i]=s.d[i]||{};s.d[i][k]=!s.d[i][k];saveM();renderAgenda()}
-  else if(b.dataset.cantall){const k=b.dataset.cantall;const s=M.cantine.sem[WK]=M.cantine.sem[WK]||{d:{},ok:false};const all=[0,1,2,3,4].every(i=>s.d[i]&&s.d[i][k]);for(let i=0;i<5;i++){s.d[i]=s.d[i]||{};s.d[i][k]=!all}saveM();renderAgenda()}
-  else if(b.id==='cantOk'){const s=M.cantine.sem[WK]=M.cantine.sem[WK]||{d:{},ok:false};s.ok=!s.ok;saveM();render()}
-  else if(b.id==='cantSet')formCantine();
 });
-document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.editEv)formEvent(M.events.find(x=>x.id===b.dataset.editEv));else if(b.dataset.editRap)formRappel(M.rappels.find(x=>x.id===b.dataset.editRap))});
+
 // ---------- PROJETS + BUDGET
 const STATUTS={idee:['Idée','butter'],prevu:['Prévu','lav'],encours:['En cours','mint'],fait:['Fait','ink']};
 function budgetCalc(){const b=M.budget;const charges=(b.charges||[]).reduce((s,c)=>s+(+c.m||0),0);const reste=(+b.revenus||0)-charges;return {ok:!!(+b.revenus),charges,reste,epargne:+b.epargne||0,parMois:+b.parMois||0}}
 function faisable(p){const b=budgetCalc();const cout=+p.cout||0;if(!cout)return ['Coût à estimer','butter'];if(cout<=b.epargne)return ['Finançable maintenant','mint'];if(b.parMois>0){const m=Math.ceil((cout-b.epargne)/b.parMois);return ['Dans ~'+m+' mois','lav']}return ['Pas encore finançable','pink']}
 function renderProjets(){
-  let h=seg('projets',[['liste','Projets'],['inspi','Inspis'],['budget','Budget']]);
-  if(SEG.projets==='liste'){
-    const ps=M.projets.slice().sort((a,b)=>((a.statut==='fait')-(b.statut==='fait'))||((b.prio||0)-(a.prio||0)));
-    if(!ps.length)h+='<div class="card"><div class="head">'+mascot('projets')+'<div><h2>Vos projets</h2><small>Travaux, voyages, achats… ajoute-les avec +, puis priorise.</small></div></div></div>';
-    const b=budgetCalc();const total=ps.filter(p=>p.statut!=='fait').reduce((s,p)=>s+(+p.cout||0),0);
-    if(ps.length)h+='<div class="kpi"><div><small>Projets en cours</small><b>'+ps.filter(p=>p.statut!=='fait').length+'</b></div><div class="'+(b.ok&&total<=b.epargne?'hi':'')+'"><small>Coût total estimé</small><b>'+eur(total)+'</b></div></div>';
-    ps.forEach(p=>{const [fl,fc]=faisable(p);const [sl,sc]=STATUTS[p.statut]||STATUTS.idee;
-      h+='<div class="card'+(p.statut==='fait'?' past':'')+'"><div class="head"><div style="flex:1"><h2>'+esc(p.t)+'</h2><small>'+(p.quand?'Visé : '+esc(p.quand)+' · ':'')+'Priorité <span class="prio">'+[1,2,3].map(n=>'<i class="'+((p.prio||1)>=n?'on':'')+'"></i>').join('')+'</span></small></div><button class="btn sm ghost" data-edit-pj="'+p.id+'">Modifier</button></div>'+
-      (p.desc?'<p class="howto" style="margin:0 0 10px">'+esc(p.desc)+'</p>':'')+
-      '<div class="row" style="margin-top:0"><span class="tag '+sc+'">'+sl+'</span>'+(p.cout?'<span class="tag" style="background:var(--seg)">'+eur(p.cout)+'</span>':'')+(p.statut!=='fait'?'<span class="tag '+fc+'">'+fl+'</span>':'')+(window.inspiCount&&inspiCount(p.id)?'<button class="tag lav" data-inspi="'+p.id+'">'+inspiCount(p.id)+' inspi'+(inspiCount(p.id)>1?'s':'')+'</button>':'')+'</div></div>'});
-  }else if(SEG.projets==='inspi'){h+=window.renderInspi?renderInspi():'';
-  }else{
-    const b=budgetCalc(),bg=M.budget;
-    h+='<div class="card"><div class="head">'+mascot('budget')+'<div><h2>Budget du foyer</h2><small>Pour savoir si un projet est tenable.</small></div></div>';
-    h+='<div class="kpi"><div><small>Revenus / mois</small><b>'+eur(bg.revenus)+'</b></div><div><small>Charges fixes</small><b>'+eur(b.charges)+'</b></div><div class="'+(b.reste>0?'hi':b.ok?'lo':'')+'"><small>Reste à vivre</small><b>'+eur(b.reste)+'</b></div><div><small>Épargne dispo</small><b>'+eur(bg.epargne)+'</b></div></div>';
-    h+='<div class="row" style="margin-top:0"><button class="btn" id="budEdit">Modifier les chiffres</button></div></div>';
-    h+='<div class="card"><h3 class="sec">Charges fixes <span class="n">'+(bg.charges||[]).length+'</span></h3>'+((bg.charges||[]).length?'<ul class="check">'+bg.charges.map((c,n)=>'<li><span>'+esc(c.t)+'</span><b>'+eur(c.m)+'</b><button class="x" data-delch="'+n+'" aria-label="Retirer">×</button></li>').join('')+'</ul>':'<p class="empty">Loyer, crédit, assurances, abonnements…</p>')+
-    '<div class="add"><input id="chT" placeholder="Charge (ex. loyer)"><input id="chM" type="number" inputmode="decimal" placeholder="€/mois" style="flex:0 0 96px"><button class="btn" id="chAdd">+</button></div></div>';
-    h+='<div class="card tint lav"><h3 class="sec">Mis de côté chaque mois : '+eur(bg.parMois)+'</h3><p class="howto" style="margin:0;color:var(--lavInk)">Sert à estimer dans combien de mois un projet devient finançable. '+(b.ok&&b.reste>0&&!bg.parMois?'Suggestion : '+eur(Math.round(b.reste*.2))+' (20 % du reste à vivre).':'')+'</p></div>';
-  }
+  const ps=M.projets.slice().sort((a,b)=>((a.statut==='fait')-(b.statut==='fait'))||((b.prio||0)-(a.prio||0)));
+  const b=budgetCalc(),bg=M.budget;
+  const total=ps.filter(p=>p.statut!=='fait').reduce((s,p)=>s+(+p.cout||0),0);
+  let h='<button class="card tap" id="budEdit" style="width:100%;text-align:left"><div class="head">'+mascot('budget')+'<div style="flex:1"><h2>Budget</h2><small>'+(b.ok?'Reste à vivre '+eur(b.reste)+' · épargne '+eur(b.epargne)+(b.parMois?' · '+eur(b.parMois)+'/mois':''):'À remplir pour savoir si un projet est tenable')+'</small></div><b class="chev">›</b></div>'+
+  (ps.length?'<div class="row" style="margin-top:0"><span class="tag" style="background:var(--seg)">'+ps.filter(p=>p.statut!=='fait').length+' projet'+(ps.filter(p=>p.statut!=='fait').length>1?'s':'')+'</span><span class="tag '+(b.ok&&total<=b.epargne?'mint':'butter')+'">'+eur(total)+' estimés</span></div>':'')+'</button>';
+  if(!ps.length)h+='<div class="card"><div class="head">'+mascot('projets')+'<div><h2>Vos projets</h2><small>Travaux, voyages, déco… ajoute-les avec +, puis colle vos inspirations dedans.</small></div></div></div>';
+  ps.forEach(p=>{const [fl,fc]=faisable(p);const [sl,sc]=STATUTS[p.statut]||STATUTS.idee;
+    h+='<div class="card tap'+(p.statut==='fait'?' past':'')+'" data-proj="'+p.id+'" role="button"><div class="head"><div style="flex:1"><h2>'+esc(p.t)+'</h2><small>'+(p.quand?'Visé : '+esc(p.quand)+' · ':'')+'Priorité <span class="prio">'+[1,2,3].map(n=>'<i class="'+((p.prio||1)>=n?'on':'')+'"></i>').join('')+'</span></small></div><b class="chev">›</b></div>'+
+    (p.desc?'<p class="howto" style="margin:0 0 10px">'+esc(p.desc)+'</p>':'')+
+    (window.inspiStrip?inspiStrip(p.id):'')+
+    '<div class="row" style="margin-top:10px"><span class="tag '+sc+'">'+sl+'</span>'+(p.cout?'<span class="tag" style="background:var(--seg)">'+eur(p.cout)+'</span>':'')+(p.statut!=='fait'?'<span class="tag '+fc+'">'+fl+'</span>':'')+'</div></div>'});
+  if(window.inspiVrac)h+=inspiVrac();
   document.getElementById('v-projets').innerHTML=h;
 }
+
 const vp=document.getElementById('v-projets');
-vp.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.editPj)formProjet(M.projets.find(x=>x.id===b.dataset.editPj));
-  else if(b.id==='budEdit')formBudget();
-  else if(b.id==='chAdd'){const t=document.getElementById('chT').value.trim(),m=+document.getElementById('chM').value;if(!t||!m){toast('Nom et montant');return}M.budget.charges=M.budget.charges||[];M.budget.charges.push({t,m});saveM();render()}
-  else if(b.dataset.delch){M.budget.charges.splice(+b.dataset.delch,1);saveM();render()}
-  else if(b.dataset.inspi){SEG.projets='inspi';window.inspiFilter(b.dataset.inspi);render()}
+vp.addEventListener('click',e=>{const b=e.target.closest('button,[data-proj]');if(!b)return;
+  if(b.id==='budEdit'){formBudget();return}
+  if(b.dataset.proj){ficheProjet(M.projets.find(x=>x.id===b.dataset.proj));return}
 });
+
 // ---------- Page (sheet) générique
 const sheet=document.getElementById('sheet'),sIn=document.getElementById('sheetIn');
 let SH=null; // {title, body:()=>html, onClick(b)=>bool, onInput(el)}
 function openSheet(def){SH=def;drawSheet();sheet.classList.add('open');sheet.scrollTop=0;document.body.style.overflow='hidden';if(!(history.state&&history.state.sheet))history.pushState({sheet:1},'')}
 function drawSheet(){sIn.innerHTML='<div class="sheet-top"><button class="back" id="closeSheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Retour</button><h2>'+esc(SH.title)+'</h2></div>'+SH.body()}
+window.refreshAll=()=>{render();if(sheet.classList.contains('open')&&SH)drawSheet()};
 function closeSheet(fromPop){sheet.classList.remove('open');document.body.style.overflow='';SH=null;if(!fromPop&&history.state&&history.state.sheet)history.back();render()}
 window.addEventListener('popstate',()=>{if(sheet.classList.contains('open'))closeSheet(true)});
 sheet.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!SH)return;if(b.id==='closeSheet'){closeSheet();return}if(SH.onClick(b)!==false)drawSheet()});
@@ -546,9 +525,17 @@ function formRappel(r){const R=r?JSON.parse(JSON.stringify(r)):{id:uid(),t:'',da
 }
 // Réglages cantine
 function formCantine(){const C=M.cantine;
-  openSheet({title:'Cantine & garderie',body:()=>F.text('cE','Prénom de l’enfant',C.enfant,'')+F.chips('lim','Rappel « à réserver » à partir du',[[1,'Mardi'],[2,'Mercredi'],[3,'Jeudi'],[4,'Vendredi']],C.limite||3)+'<p class="howto">Le rappel s’affiche sur l’accueil tant que la semaine suivante n’est pas marquée « Réservation faite ».</p>'+F.bot('Enregistrer'),
-  onClick:b=>{if(b.dataset.chip){C.enfant=g('cE').value;C.limite=+b.dataset.chip.split('/')[1];return}if(b.id==='ok'){C.enfant=g('cE').value.trim();saveM();closeSheet()}return false}});
+  openSheet({title:'Cantine & garderie',body:()=>F.text('cE','Prénom de l’enfant',C.enfant,'')+
+    F.date('cJ','Réservé jusqu’au',C.jusqu||'')+
+    '<div class="field"><div class="chips"><button class="chip" data-plus="7">+ 1 semaine</button><button class="chip" data-plus="14">+ 2 semaines</button><button class="chip" data-plus="30">+ 1 mois</button></div></div>'+
+    F.chips('mg','Me prévenir',[[3,'3 jours avant'],[7,'1 semaine avant'],[14,'2 semaines avant']],C.marge||7)+
+    '<p class="howto">Les réservations se font sur le portail de la mairie. L’app sert de mémo partagé : une alerte s’affiche sur l’accueil quand la date approche.</p>'+F.bot('Enregistrer'),
+  onClick:b=>{if(b.dataset.chip){C.enfant=g('cE').value;C.jusqu=g('cJ').value;C.marge=+b.dataset.chip.split('/')[1];return}
+    if(b.dataset.plus){C.enfant=g('cE').value;const base=g('cJ').value&&g('cJ').value>iso?g('cJ').value:iso;C.jusqu=addD(base,+b.dataset.plus);return}
+    if(b.id==='ok'){C.enfant=g('cE').value.trim();C.jusqu=g('cJ').value;saveM();closeSheet()}return false},
+  onChange:el=>{if(el.id==='cJ')C.jusqu=el.value}});
 }
+
 // Projet
 function formProjet(p){const P=p?JSON.parse(JSON.stringify(p)):{id:uid(),t:'',desc:'',prio:2,statut:'idee',cout:'',quand:''};
   openSheet({title:p?'Modifier le projet':'Nouveau projet',body:()=>F.text('pT','Projet',P.t,'ex. Refaire la salle de bain')+F.area('pD','Détails',P.desc,'optionnel')+F.chips('prio','Priorité',[[3,'Haute'],[2,'Moyenne'],[1,'Basse']],P.prio)+F.chips('st','Statut',Object.entries(STATUTS).map(([k,v])=>[k,v[0]]),P.statut)+'<div class="duo">'+F.text('pC','Coût estimé (€)',P.cout,'0',' type="number" inputmode="decimal"')+F.text('pQ','Quand',P.quand,'ex. été 2027')+'</div>'+F.bot(p?'Enregistrer':'Ajouter',!!p),
@@ -558,10 +545,21 @@ function formProjet(p){const P=p?JSON.parse(JSON.stringify(p)):{id:uid(),t:'',de
     return false}});
 }
 // Budget
-function formBudget(){const B=M.budget;
-  openSheet({title:'Budget du foyer',body:()=>F.text('bR','Revenus nets du foyer / mois (€)',B.revenus||'','0',' type="number" inputmode="decimal"')+F.text('bE','Épargne disponible pour les projets (€)',B.epargne||'','0',' type="number" inputmode="decimal"')+F.text('bM','Mis de côté chaque mois (€)',B.parMois||'','0',' type="number" inputmode="decimal"')+'<p class="howto">Ces chiffres restent dans votre espace Firebase privé, partagé entre vos deux téléphones.</p>'+F.bot('Enregistrer'),
-  onClick:b=>{if(b.id==='ok'){B.revenus=+g('bR').value||0;B.epargne=+g('bE').value||0;B.parMois=+g('bM').value||0;saveM();closeSheet()}return false}});
+function formBudget(){const B=M.budget;const calc=()=>budgetCalc();
+  openSheet({title:'Budget du foyer',body:()=>{const b=calc();
+    return '<div class="kpi"><div><small>Revenus / mois</small><b>'+eur(B.revenus)+'</b></div><div><small>Charges fixes</small><b>'+eur(b.charges)+'</b></div><div class="'+(b.reste>0?'hi':b.ok?'lo':'')+'"><small>Reste à vivre</small><b>'+eur(b.reste)+'</b></div><div><small>Épargne dispo</small><b>'+eur(B.epargne)+'</b></div></div>'+
+    F.text('bR','Revenus nets du foyer / mois (€)',B.revenus||'','0',' type="number" inputmode="decimal"')+
+    F.text('bE','Épargne disponible pour les projets (€)',B.epargne||'','0',' type="number" inputmode="decimal"')+
+    F.text('bM','Mis de côté chaque mois (€)',B.parMois||'','0',' type="number" inputmode="decimal"')+
+    '<div class="field"><p>Charges fixes <small>· loyer, crédit, assurances…</small></p>'+((B.charges||[]).length?'<ul class="check">'+B.charges.map((c,n)=>'<li><span>'+esc(c.t)+'</span><b>'+eur(c.m)+'</b><button class="x" data-delch="'+n+'" aria-label="Retirer">×</button></li>').join('')+'</ul>':'<p class="empty">Aucune pour l’instant.</p>')+
+    '<div class="add"><input id="chT" placeholder="Charge"><input id="chM" type="number" inputmode="decimal" placeholder="€/mois" style="flex:0 0 96px"><button class="btn" id="chAdd">+</button></div></div>'+
+    '<p class="howto">« Mis de côté » sert à estimer dans combien de mois un projet devient finançable.'+(b.ok&&b.reste>0&&!B.parMois?' Suggestion : '+eur(Math.round(b.reste*.2))+' (20 % du reste à vivre).':'')+'</p>'+F.bot('Enregistrer')},
+  onClick:b=>{const grab=()=>{B.revenus=+g('bR').value||0;B.epargne=+g('bE').value||0;B.parMois=+g('bM').value||0};
+    if(b.id==='chAdd'){grab();const t=g('chT').value.trim(),m=+g('chM').value;if(!t||!m){toast('Nom et montant');return false}B.charges=B.charges||[];B.charges.push({t,m});saveM();return}
+    if(b.dataset.delch){grab();B.charges.splice(+b.dataset.delch,1);saveM();return}
+    if(b.id==='ok'){grab();saveM();closeSheet()}return false}});
 }
+
 // ---------- Démarrage
 render();
 if(first!==null&&first>0)setTimeout(()=>{const el=document.getElementById('d'+first);if(el&&VIEW==='repas')el.scrollIntoView({block:'start'})},50);
