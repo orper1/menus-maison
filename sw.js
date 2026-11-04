@@ -1,5 +1,5 @@
 // Réseau d'abord (menus toujours à jour), cache en secours hors ligne.
-const CACHE = 'menus-v4';
+const CACHE = 'maison-v5';
 const FILES = ['./', 'index.html', 'data.js', 'manifest.json', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
