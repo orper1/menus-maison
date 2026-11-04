@@ -289,10 +289,10 @@ const toast=t=>{const el=document.getElementById('toast');el.textContent=t;el.cl
 let VIEW='home';const SEG={repas:'menus',agenda:'events',projets:'liste'};
 const seg=(v,opts)=>'<div class="seg">'+opts.map(([k,l])=>'<button data-seg="'+v+'/'+k+'" class="'+(SEG[v]===k?'on':'')+'">'+l+'</button>').join('')+'</div>';
 function render(){renderHome();renderRepas();renderAgenda();renderProjets();updateFab()}
-function updateFab(){const fab=document.getElementById('fab');const on=(VIEW==='agenda')||(VIEW==='projets'&&SEG.projets==='liste');fab.classList.toggle('show',on);document.body.style.paddingBottom=on?'calc(160px + env(safe-area-inset-bottom))':''}
+function updateFab(){const fab=document.getElementById('fab');const on=(VIEW==='agenda')||(VIEW==='projets'&&SEG.projets!=='budget');fab.classList.toggle('show',on);document.body.style.paddingBottom=on?'calc(160px + env(safe-area-inset-bottom))':''}
 document.querySelectorAll('nav button').forEach(btn=>btn.onclick=()=>{VIEW=btn.dataset.v;document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===btn));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+VIEW));updateFab();window.scrollTo(0,0);if(VIEW==='repas'&&SEG.repas==='menus'&&first)setTimeout(()=>{const el=document.getElementById('d'+first);if(el)el.scrollIntoView({block:'start'})},30)});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-seg]');if(!b)return;const [v,k]=b.dataset.seg.split('/');SEG[v]=k;render()});
-document.getElementById('fab').onclick=()=>{if(VIEW==='agenda'){if(SEG.agenda==='events')formEvent();else if(SEG.agenda==='rappels')formRappel();else formCantine()}else formProjet()};
+document.getElementById('fab').onclick=()=>{if(VIEW==='agenda'){if(SEG.agenda==='events')formEvent();else if(SEG.agenda==='rappels')formRappel();else formCantine()}else if(SEG.projets==='inspi')formInspi();else formProjet()};
 // ---------- Helpers menus / courses
 const listeRachat=()=>{const items=[];D.courses.forEach((r,ri)=>r.items.forEach((it,ii)=>{if(S.fini[ri+'-'+ii])items.push(it)}));return items.concat(S.extra)};
 const dejaCuisine=()=>{const out=[];D.jours.forEach((j,i)=>['midi','soir'].forEach(m=>{const k=i+'-'+m;if(S.cook[k]){const o=[j[m]].concat(j[m==='midi'?'altMidi':'altSoir']||[]);out.push(o[S.swap[k]||0])}}));return [...new Set(out)]};
@@ -442,7 +442,7 @@ const STATUTS={idee:['Idée','butter'],prevu:['Prévu','lav'],encours:['En cours
 function budgetCalc(){const b=M.budget;const charges=(b.charges||[]).reduce((s,c)=>s+(+c.m||0),0);const reste=(+b.revenus||0)-charges;return {ok:!!(+b.revenus),charges,reste,epargne:+b.epargne||0,parMois:+b.parMois||0}}
 function faisable(p){const b=budgetCalc();const cout=+p.cout||0;if(!cout)return ['Coût à estimer','butter'];if(cout<=b.epargne)return ['Finançable maintenant','mint'];if(b.parMois>0){const m=Math.ceil((cout-b.epargne)/b.parMois);return ['Dans ~'+m+' mois','lav']}return ['Pas encore finançable','pink']}
 function renderProjets(){
-  let h=seg('projets',[['liste','Projets'],['budget','Budget']]);
+  let h=seg('projets',[['liste','Projets'],['inspi','Inspis'],['budget','Budget']]);
   if(SEG.projets==='liste'){
     const ps=M.projets.slice().sort((a,b)=>((a.statut==='fait')-(b.statut==='fait'))||((b.prio||0)-(a.prio||0)));
     if(!ps.length)h+='<div class="card"><div class="head">'+mascot('projets')+'<div><h2>Vos projets</h2><small>Travaux, voyages, achats… ajoute-les avec +, puis priorise.</small></div></div></div>';
@@ -451,7 +451,8 @@ function renderProjets(){
     ps.forEach(p=>{const [fl,fc]=faisable(p);const [sl,sc]=STATUTS[p.statut]||STATUTS.idee;
       h+='<div class="card'+(p.statut==='fait'?' past':'')+'"><div class="head"><div style="flex:1"><h2>'+esc(p.t)+'</h2><small>'+(p.quand?'Visé : '+esc(p.quand)+' · ':'')+'Priorité <span class="prio">'+[1,2,3].map(n=>'<i class="'+((p.prio||1)>=n?'on':'')+'"></i>').join('')+'</span></small></div><button class="btn sm ghost" data-edit-pj="'+p.id+'">Modifier</button></div>'+
       (p.desc?'<p class="howto" style="margin:0 0 10px">'+esc(p.desc)+'</p>':'')+
-      '<div class="row" style="margin-top:0"><span class="tag '+sc+'">'+sl+'</span>'+(p.cout?'<span class="tag" style="background:var(--seg)">'+eur(p.cout)+'</span>':'')+(p.statut!=='fait'?'<span class="tag '+fc+'">'+fl+'</span>':'')+'</div></div>'});
+      '<div class="row" style="margin-top:0"><span class="tag '+sc+'">'+sl+'</span>'+(p.cout?'<span class="tag" style="background:var(--seg)">'+eur(p.cout)+'</span>':'')+(p.statut!=='fait'?'<span class="tag '+fc+'">'+fl+'</span>':'')+(window.inspiCount&&inspiCount(p.id)?'<button class="tag lav" data-inspi="'+p.id+'">'+inspiCount(p.id)+' inspi'+(inspiCount(p.id)>1?'s':'')+'</button>':'')+'</div></div>'});
+  }else if(SEG.projets==='inspi'){h+=window.renderInspi?renderInspi():'';
   }else{
     const b=budgetCalc(),bg=M.budget;
     h+='<div class="card"><div class="head">'+mascot('budget')+'<div><h2>Budget du foyer</h2><small>Pour savoir si un projet est tenable.</small></div></div>';
@@ -469,6 +470,7 @@ vp.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   else if(b.id==='budEdit')formBudget();
   else if(b.id==='chAdd'){const t=document.getElementById('chT').value.trim(),m=+document.getElementById('chM').value;if(!t||!m){toast('Nom et montant');return}M.budget.charges=M.budget.charges||[];M.budget.charges.push({t,m});saveM();render()}
   else if(b.dataset.delch){M.budget.charges.splice(+b.dataset.delch,1);saveM();render()}
+  else if(b.dataset.inspi){SEG.projets='inspi';window.inspiFilter(b.dataset.inspi);render()}
 });
 // ---------- Page (sheet) générique
 const sheet=document.getElementById('sheet'),sIn=document.getElementById('sheetIn');
@@ -565,9 +567,10 @@ addEventListener('touchend',()=>{if(y0===null)return;y0=null;ptr.classList.remov
 })();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
+<script src="inspi.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const firebaseConfig = {
   apiKey: "AIzaSyAGyeKLg5WdhMSB5dn_phmJ95PjggnyVxY",
   authDomain: "menus-maison-9efcf.firebaseapp.com",
@@ -595,6 +598,9 @@ else {
   const fail = () => { status('Code maison refusé ou hors ligne', 'ko'); card.style.display = 'block'; window.hideSplash(); };
   onSnapshot(refS, snap => { if (snap.exists()) window.applyRemote(snap.data()); else if (f1) window.syncSave(window.getState()); f1 = false; status('Synchronisé ✓', 'ok'); window.hideSplash(); }, fail);
   onSnapshot(refM, snap => { if (snap.exists()) window.applyRemoteM(snap.data()); else if (f2) window.syncSaveM(window.getM()); f2 = false; }, fail);
+  const colI = collection(db, 'maisons', code, 'inspi');
+  window.FB = { saveInspi: it => setDoc(doc(colI, it.id), JSON.parse(JSON.stringify(it))).catch(() => status('Hors ligne : sera envoyé plus tard', 'ko')), delInspi: id => deleteDoc(doc(colI, id)).catch(() => {}) };
+  onSnapshot(colI, snap => { window.applyInspi(snap.docs.map(d => d.data())); }, () => {});
 }
 </script>
 </body>
