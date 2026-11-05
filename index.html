@@ -94,6 +94,7 @@ nav button.on svg{color:var(--lavInk)}
 .card.tap{cursor:pointer;display:block}button.card.tap{font:inherit;color:inherit}.card.tap:active{transform:scale(.99)}.head .chev{font-size:24px;color:var(--soft);margin-left:auto;padding-left:8px}
 .alert{display:flex;align-items:center;gap:10px;background:var(--pink);border-radius:16px;padding:10px 12px;font-size:14px;font-weight:800;color:var(--pinkInk);margin-bottom:12px}
 .alert svg{width:22px;height:22px;flex:none}
+.line.tap{cursor:pointer}
 .line{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .line:last-child{border-bottom:none}
 .line .d{flex:none;width:46px;text-align:center;background:var(--seg);border-radius:12px;padding:5px 0;font-size:12px;font-weight:800;color:var(--soft);line-height:1.15}
@@ -274,17 +275,18 @@ const dowFR=v=>(new Date(v+'T12:00:00').getDay()+6)%7;
 const D=window.MENU_DATA;
 const KEY='etat:'+D.titre,KEYM='maison:etat';
 const S0=()=>({cook:{},swap:{},pris:{},fini:{},extra:[],beteFait:{},beteMoi:[]});
-const M0=()=>({projets:[],budget:{revenus:0,charges:[],epargne:0,parMois:0},events:[],rappels:[],cantine:{enfant:'',jusqu:'',marge:7},params:{}});
+const M0=()=>({projets:[],budget:{revenus:0,charges:[],epargne:0,parMois:0},events:[],rappels:[],resa:[],cantine:{},params:{}});
 let S=S0(),M=M0();
 try{S=Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 try{M=deep(M0(),JSON.parse(localStorage.getItem(KEYM)||'{}'))}catch(e){}
+migrerResa();
 function deep(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&a[k]&&typeof a[k]==='object'&&!Array.isArray(a[k]))deep(a[k],b[k]);else a[k]=b[k]}return a}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(window.syncSave)window.syncSave(S)};
 const saveM=()=>{try{localStorage.setItem(KEYM,JSON.stringify(M))}catch(e){}if(window.syncSaveM)window.syncSaveM(M)};
 window.SYNC_KEY=D.titre;window.getState=()=>S;window.getM=()=>M;
 const typing=()=>{const ae=document.activeElement;return ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')&&!sheet.classList.contains('open')};
 window.applyRemote=data=>{if(!data)return;S=Object.assign(S0(),data);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(!typing())render()};
-window.applyRemoteM=data=>{if(!data)return;M=deep(M0(),data);try{localStorage.setItem(KEYM,JSON.stringify(M))}catch(e){}if(!typing()&&!sheet.classList.contains('open'))render()};
+window.applyRemoteM=data=>{if(!data)return;M=deep(M0(),data);migrerResa();try{localStorage.setItem(KEYM,JSON.stringify(M))}catch(e){}if(!typing()&&!sheet.classList.contains('open'))render()};
 const toast=t=>{const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1600)};
 // ---------- Navigation + segments
 let VIEW='home';const SEG={repas:'menus',agenda:'events'};
@@ -303,8 +305,14 @@ const dejaCuisine=()=>{const out=[];D.jours.forEach((j,i)=>['midi','soir'].forEa
 const platDu=(j,i,kind)=>{const base=j[kind];if(!base||base==='—')return null;const o=[base].concat(j[kind==='midi'?'altMidi':'altSoir']||[]);return {t:o[S.swap[i+'-'+kind]||0],cooked:!!S.cook[i+'-'+kind]}};
 // ---------- Rappels calculés (cantine à réserver, etc.)
 const semKey=v=>mondayOf(v);
-const cantineAlerte=()=>{const c=M.cantine;if(!c.jusqu)return null;const marge=+c.marge||7;if(c.jusqu<plusJ(marge))return (c.enfant?c.enfant+' : ':'')+'cantine et garderie réservées jusqu’au '+court(c.jusqu)+' seulement';return null};
-const cantineResume=()=>{const c=M.cantine;if(!c.jusqu)return 'À renseigner';if(c.jusqu<iso)return 'Expiré le '+court(c.jusqu);return 'Jusqu’au '+court(c.jusqu)};
+// Réservations : cantine, garderie, centres de vacances… chacune avec une date de couverture ou une date limite.
+function migrerResa(){if(!Array.isArray(M.resa))M.resa=[];const c=M.cantine;
+  if(c&&c.jusqu&&!M.resa.some(r=>r.cant)){M.resa.push({id:uid(),cant:1,t:'Cantine & garderie'+(c.enfant?' · '+c.enfant:''),jusqu:c.jusqu,avant:'',marge:+c.marge||7,fait:false})}
+  if(!M.resa.length)M.resa=[{id:uid(),cant:1,t:'Cantine & garderie',jusqu:'',avant:'',marge:7,fait:false}]}
+const resaKo=r=>{const m=+r.marge||7;if(r.avant&&!r.fait&&r.avant<plusJ(m))return 'À réserver avant le '+court(r.avant);if(r.jusqu&&r.jusqu<plusJ(m))return (r.jusqu<iso?'Expiré le ':'Couvert jusqu’au ')+court(r.jusqu);return ''};
+const resaEtat=r=>{if(r.avant&&!r.fait)return (r.avant<iso?'En retard · ':'')+'À réserver avant le '+court(r.avant);if(r.jusqu)return (r.jusqu<iso?'Expiré le ':'Jusqu’au ')+court(r.jusqu);return r.fait?'Réservé':'À renseigner'};
+const resaAlertes=()=>(M.resa||[]).map(r=>{const k=resaKo(r);return k?r.t+' : '+k.toLowerCase():null}).filter(Boolean);
+const resaResume=()=>{const al=resaAlertes();if(al.length)return al.length+' à faire';const r=(M.resa||[]).filter(x=>x.jusqu).sort((a,b)=>a.jusqu<b.jusqu?-1:1)[0];return r?'Jusqu’au '+court(r.jusqu):'À renseigner'};
 
 const rappelsDus=()=>M.rappels.filter(r=>!r.fait&&r.date&&r.date<=iso).sort((a,b)=>a.date<b.date?-1:1);
 const eventsJour=v=>M.events.filter(e=>e.date===v).sort((a,b)=>(a.heure||'')<(b.heure||'')?-1:1);
@@ -312,7 +320,7 @@ const eventsJour=v=>M.events.filter(e=>e.date===v).sort((a,b)=>(a.heure||'')<(b.
 function renderHome(){
   document.getElementById('hSous').textContent=joli(iso).replace(/^./,c=>c.toUpperCase());
   let h='';
-  const al=cantineAlerte();if(al)h+='<div class="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg>'+al+'</div>';
+  resaAlertes().forEach(a=>h+='<div class="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg>'+esc(a)+'</div>');
   const dus=rappelsDus();if(dus.length)h+='<div class="alert" style="background:var(--butter);color:var(--butterInk)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 8a6 6 0 0 1 12 0v5l2 3H4l2-3z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>'+dus.length+' rappel'+(dus.length>1?'s':'')+' à faire : '+esc(dus.map(r=>r.t).slice(0,2).join(', '))+(dus.length>2?'…':'')+'</div>';
   const ac=aConfirmer();if(ac.length)h+='<div class="card tint butter"><h3 class="sec">Vous avez cuisiné ? <span class="n">'+ac.length+'</span></h3><p class="howto" style="margin:0 0 6px;color:var(--butterInk)">Ce qui n’a pas été fait pourra être reproposé au prochain menu.</p>'+ac.map(x=>'<div class="line"><div class="t"><b>'+esc(x.t)+'</b><small>'+esc(x.j.label)+'</small></div><button class="btn sm" data-cook="'+x.k+'">✓ Oui</button><button class="btn sm ghost" data-nocook="'+x.k+'">✕ Non</button></div>').join('')+'</div>';
   // Repas du jour
@@ -334,13 +342,13 @@ function renderHome(){
   h+='<div class="tiles">'+
   '<button class="tile" style="background:var(--butter)" data-go="repas/courses">'+mascot('courses')+'<span><b>Courses</b><small>'+(rach?rach+' à racheter':'Rien à racheter')+'</small></span></button>'+
   '<button class="tile" style="background:var(--lav)" data-go="projets/x">'+mascot('projets')+'<span><b>Projets</b><small>'+(top?'Priorité : '+esc(top.t):projs.length+' en cours')+'</small></span></button>'+
-  '<button class="tile" id="tileCant" style="background:var(--sky)">'+mascot('cantine')+'<span><b>Cantine</b><small>'+esc(cantineResume())+'</small></span></button>'+
+  '<button class="tile" data-go="agenda/events" style="background:var(--sky)">'+mascot('cantine')+'<span><b>Réservations</b><small>'+esc(resaResume())+'</small></span></button>'+
   '<button class="tile" style="background:var(--mint)" data-go="projets/x">'+mascot('budget')+'<span><b>Budget</b><small>'+(bud.ok?'Reste à vivre '+eur(bud.reste):'À remplir')+'</small></span></button>'+
   '</div>';
   document.getElementById('v-home').innerHTML=h;
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-cook],[data-nocook]');if(!b)return;if(b.dataset.cook){const k=b.dataset.cook;S.cook[k]=S.cook[k]===true?undefined:true;if(S.cook[k]===undefined)delete S.cook[k]}else{const k=b.dataset.nocook;S.cook[k]=S.cook[k]==='non'?undefined:'non';if(S.cook[k]===undefined)delete S.cook[k]}save();render()});
-document.addEventListener('click',e=>{if(e.target.closest('#tileCant')){formCantine();return}const b=e.target.closest('[data-go]');if(!b)return;const inner=e.target.closest('button');if(inner&&inner!==b)return;const [v,k]=b.dataset.go.split('/');if(SEG[v]!==undefined)SEG[v]=k;document.querySelector('nav button[data-v='+v+']').click();render()});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(!b)return;const inner=e.target.closest('button');if(inner&&inner!==b)return;const [v,k]=b.dataset.go.split('/');if(SEG[v]!==undefined)SEG[v]=k;document.querySelector('nav button[data-v='+v+']').click();render()});
 // ---------- REPAS
 let first=null;
 function meal(j,i,kind){
@@ -409,7 +417,7 @@ function renderAgenda(){
     if(!evs.length)h+='<div class="card"><div class="head">'+mascot('agenda')+'<div><h2>Rien de prévu</h2><small>Ajoute un événement avec le bouton +.</small></div></div></div>';
     let cur='';evs.forEach(e=>{if(e.date!==cur){if(cur)h+='</div>';cur=e.date;h+='<div class="card'+(e.date===iso?' today':'')+'"><h3 class="sec">'+court(e.date).replace(/^./,c=>c.toUpperCase())+(e.date===iso?'<span class="n">Aujourd’hui</span>':e.date===plusJ(1)?'<span class="n">Demain</span>':'')+'</h3>'}h+=evLine(e)});if(cur)h+='</div>';
     const passes=M.events.filter(e=>e.date<iso).length;if(passes)h+='<button class="reset" id="purgeEv">Effacer les '+passes+' événements passés</button>';
-    h+=cantineCard();
+    h+=resaCard();
     h+='<div class="card tint sky" style="margin-top:14px"><h3 class="sec">Calendrier iPhone</h3><p class="howto" style="margin:0;color:var(--skyInk)">Chaque événement a un bouton « Mettre dans l’iPhone » qui l’ajoute au calendrier iOS, avec un rappel. Dans l’autre sens (lire le calendrier iPhone ici), c’est l’étape 2 : un raccourci iOS qui envoie vos événements à l’app.</p></div>';
   }else{
     const rs=M.rappels.slice().sort((a,b)=>(a.fait-b.fait)||((a.date||'9')<(b.date||'9')?-1:1));
@@ -419,13 +427,15 @@ function renderAgenda(){
   }
   document.getElementById('v-agenda').innerHTML=h;
 }
-function cantineCard(){const c=M.cantine;const ko=!c.jusqu||c.jusqu<plusJ(+c.marge||7);
-  return '<div class="card tap'+(ko?' tint butter':'')+'" data-cant="1" role="button" style="margin-top:14px"><div class="head">'+mascot('cantine')+'<div><h2>Cantine &amp; garderie</h2><small'+(ko?' style="color:var(--butterInk)"':'')+'>'+(c.enfant?esc(c.enfant)+' · ':'')+esc(cantineResume())+'</small></div><b class="chev">›</b></div></div>'}
-
+function resaCard(){const rs=(M.resa||[]);
+  let h='<div class="card" style="margin-top:14px"><div class="head">'+mascot('cantine')+'<div style="flex:1"><h2>Réservations</h2><small>Cantine, garderie, vacances…</small></div><button class="btn sm" data-newresa="1">+</button></div>';
+  h+=rs.map(r=>{const ko=resaKo(r);return '<div class="line tap'+(ko?' late':'')+'" data-resa="'+r.id+'" role="button"><div class="t"><b>'+esc(r.t)+'</b><small'+(ko?' style="color:var(--pinkInk)"':'')+'>'+esc(resaEtat(r))+'</small></div><b class="chev" style="font-size:20px;color:var(--soft)">›</b></div>'}).join('');
+  return h+'</div>'}
 
 const va=document.getElementById('v-agenda');
-va.addEventListener('click',e=>{const b=e.target.closest('button,[data-cant]');if(!b)return;
-  if(b.dataset.cant){formCantine();return}
+va.addEventListener('click',e=>{const b=e.target.closest('button,[data-resa]');if(!b)return;
+  if(b.dataset.newresa){formResa();return}
+  if(b.dataset.resa){formResa((M.resa||[]).find(x=>x.id===b.dataset.resa));return}
   if(b.dataset.fait){const r=M.rappels.find(x=>x.id===b.dataset.fait);r.fait=!r.fait;if(r.fait&&r.rep&&r.date){const n={j:1,s:7,m:30}[r.rep];r.fait=false;r.date=addD(r.date<iso?iso:r.date,n);toast('Reporté au '+court(r.date))}saveM();render()}
   else if(b.id==='purgeEv'){M.events=M.events.filter(x=>x.date>=iso);saveM();render()}
   else if(b.id==='purgeRap'){M.rappels=M.rappels.filter(x=>!x.fait);saveM();render()}
@@ -524,16 +534,28 @@ function formRappel(r){const R=r?JSON.parse(JSON.stringify(r)):{id:uid(),t:'',da
     return false}});
 }
 // Réglages cantine
-function formCantine(){const C=M.cantine;
-  openSheet({title:'Cantine & garderie',body:()=>F.text('cE','Prénom de l’enfant',C.enfant,'')+
-    F.date('cJ','Réservé jusqu’au',C.jusqu||'')+
+function formResa(r){const R=r?JSON.parse(JSON.stringify(r)):{id:uid(),t:'',jusqu:'',avant:'',marge:7,fait:false};
+  const PRESETS=['Cantine & garderie','Centre de loisirs','Vacances de Noël','Vacances d’hiver','Vacances de printemps','Centre aéré d’été'];
+  openSheet({title:r?'Réservation':'Nouvelle réservation',body:()=>
+    F.text('rT','Quoi',R.t,'ex. Centre de loisirs — vacances de février')+
+    (r?'':'<div class="field"><div class="chips">'+PRESETS.map(t=>'<button class="chip" data-preset="'+esc(t)+'">'+esc(t)+'</button>').join('')+'</div></div>')+
+    F.date('rJ','Couvert jusqu’au <small>· pour la cantine, la garderie</small>',R.jusqu||'')+
     '<div class="field"><div class="chips"><button class="chip" data-plus="7">+ 1 semaine</button><button class="chip" data-plus="14">+ 2 semaines</button><button class="chip" data-plus="30">+ 1 mois</button></div></div>'+
-    F.chips('mg','Me prévenir',[[3,'3 jours avant'],[7,'1 semaine avant'],[14,'2 semaines avant']],C.marge||7)+
-    '<p class="howto">Les réservations se font sur le portail de la mairie. L’app sert de mémo partagé : une alerte s’affiche sur l’accueil quand la date approche.</p>'+F.bot('Enregistrer'),
-  onClick:b=>{if(b.dataset.chip){C.enfant=g('cE').value;C.jusqu=g('cJ').value;C.marge=+b.dataset.chip.split('/')[1];return}
-    if(b.dataset.plus){C.enfant=g('cE').value;const base=g('cJ').value&&g('cJ').value>iso?g('cJ').value:iso;C.jusqu=addD(base,+b.dataset.plus);return}
-    if(b.id==='ok'){C.enfant=g('cE').value.trim();C.jusqu=g('cJ').value;saveM();closeSheet()}return false},
-  onChange:el=>{if(el.id==='cJ')C.jusqu=el.value}});
+    F.date('rA','À réserver avant le <small>· pour les vacances</small>',R.avant||'')+
+    F.sw('rF','C’est réservé',R.fait)+
+    F.chips('mg','Me prévenir',[[3,'3 jours avant'],[7,'1 semaine avant'],[14,'2 semaines avant']],R.marge||7)+
+    '<p class="howto">Les réservations se font sur le portail de la mairie ou du centre. L’app sert de mémo partagé : une alerte s’affiche sur l’accueil quand la date approche.</p>'+
+    F.bot(r?'Enregistrer':'Ajouter',!!r&&!r.cant),
+  onClick:b=>{const grab=()=>{R.t=g('rT').value;R.jusqu=g('rJ').value;R.avant=g('rA').value};
+    if(b.dataset.preset){grab();R.t=b.dataset.preset;return}
+    if(b.dataset.chip){grab();R.marge=+b.dataset.chip.split('/')[1];return}
+    if(b.dataset.plus){grab();const base=R.jusqu&&R.jusqu>iso?R.jusqu:iso;R.jusqu=addD(base,+b.dataset.plus);return}
+    if(b.id==='rF'){grab();R.fait=!R.fait;return}
+    if(b.id==='del'){M.resa=M.resa.filter(x=>x.id!==R.id);saveM();closeSheet();return false}
+    if(b.id==='ok'){grab();R.t=R.t.trim();if(!R.t){toast('Donne un nom');return false}
+      const i=(M.resa||[]).findIndex(x=>x.id===R.id);if(i<0)M.resa.push(R);else M.resa[i]=R;saveM();closeSheet();return false}
+    return false},
+  onChange:el=>{if(el.id==='rJ')R.jusqu=el.value;if(el.id==='rA')R.avant=el.value}});
 }
 
 // Projet

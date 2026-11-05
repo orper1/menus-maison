@@ -17,6 +17,14 @@ const CSS=`
 .insp .vt button.me{border-color:var(--ink);color:var(--ink);background:var(--bg)}
 .insp .vt button.like.me{background:var(--pink);color:var(--pinkInk);border-color:var(--pinkInk)}
 .insp .vt button span{font-size:12px;opacity:.8}
+.insp{position:relative}
+.dots{position:absolute;top:8px;right:8px;z-index:3;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.94);box-shadow:0 1px 6px rgba(30,27,46,.2);font:900 16px Nunito,sans-serif;line-height:1;color:var(--ink);letter-spacing:1px}
+.pop{position:absolute;top:44px;right:8px;z-index:4;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 24px rgba(30,27,46,.18);overflow:hidden;display:none;min-width:150px}
+.pop.open{display:block}
+.pop a,.pop button{display:block;width:100%;text-align:left;padding:11px 14px;font:800 14px Nunito,sans-serif;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line);background:#fff}
+.pop a:last-child,.pop button:last-child{border-bottom:none}
+.pop .sup{color:var(--pinkInk)}
+.vis a.zone{position:absolute;inset:0;z-index:2;display:block}
 .strip{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
 .strip .th{position:relative;flex:none;width:62px;height:62px;border-radius:14px;overflow:hidden;background:var(--lav);display:flex;align-items:center;justify-content:center}
 .strip .th img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -42,16 +50,22 @@ const insta=u=>{const m=/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/.exec(u
 const LINKSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
 const apercu=it=>it.img||insta(it.lien);
 const sorted=xs=>xs.slice().sort((a,b)=>{const r={coeur:0,ouvert:1,jete:2};return (r[etat(a)]-r[etat(b)])||((b.ts||0)-(a.ts||0))});
+let DELCONF=null;
 const refresh=()=>{keep();if(window.refreshAll)refreshAll();else render()};
 
 function visu(it){
   const u=apercu(it);
-  return '<div class="vis" data-open="'+it.id+'"><div class="lk">'+LINKSVG+esc(dom(it.lien||''))+'</div>'+
-  (u?'<img class="im" src="'+esc(u)+'" alt="" referrerpolicy="no-referrer" onerror="this.remove()">':'')+'</div>';
+  return '<div class="vis"><div class="lk">'+LINKSVG+esc(dom(it.lien||''))+'</div>'+
+  (u?'<img class="im" src="'+esc(u)+'" alt="" referrerpolicy="no-referrer" onerror="this.remove()">':'')+
+  (it.lien?'<a class="zone" href="'+esc(it.lien)+'" target="_blank" rel="noopener" aria-label="Ouvrir le lien"></a>':'')+'</div>';
 }
 function card(it){
-  const s=score(it),me=moi(),mv=(it.votes||{})[me]||0;
-  return '<div class="insp '+etat(it)+'">'+visu(it)+'<div class="bd" data-open="'+it.id+'"><b>'+esc(it.t||dom(it.lien||'Inspi'))+'</b>'+(it.note?'<small>'+esc(it.note)+'</small>':'')+'</div>'+
+  const s=score(it),me=moi(),mv=(it.votes||{})[me]||0,del=DELCONF===it.id;
+  return '<div class="insp '+etat(it)+'">'+visu(it)+
+  '<button class="dots" data-dots="'+it.id+'" aria-label="Options">⋯</button>'+
+  '<div class="pop" id="pop-'+it.id+'">'+(it.lien?'<a href="'+esc(it.lien)+'" target="_blank" rel="noopener">Ouvrir le lien ↗</a>':'')+
+  '<button data-mod="'+it.id+'">Modifier</button><button class="sup" data-sup="'+it.id+'">'+(del?'Confirmer ?':'Supprimer')+'</button></div>'+
+  '<div class="bd">'+(it.lien?'<a href="'+esc(it.lien)+'" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><b>'+esc(it.t||dom(it.lien))+'</b></a>':'<b>'+esc(it.t||'Inspi')+'</b>')+(it.note?'<small>'+esc(it.note)+'</small>':'')+'</div>'+
   '<div class="vt"><button class="like'+(mv>0?' me':'')+'" data-vote="'+it.id+'/1">♥ <span>'+s.up+'</span></button><button class="'+(mv<0?'me':'')+'" data-vote="'+it.id+'/-1">✕ <span>'+s.down+'</span></button></div></div>';
 }
 // Bandeau de vignettes sur la carte d'un projet
@@ -81,18 +95,24 @@ window.ficheProjet=function(p){
     if(b.id==='moiOk'){const v=g('moiIn').value.trim();if(!v){toast('Écris ton prénom');return false}try{localStorage.setItem('moi',v)}catch(e){}return}
     if(b.dataset.editpj){formProjet(p);return false}
     if(b.dataset.newinspi!==undefined){formInspi(null,b.dataset.newinspi);return false}
-    if(b.dataset.vote||b.dataset.open)return false;
+    if(b.dataset.vote||b.dataset.dots||b.dataset.mod||b.dataset.sup)return false;
     return false}});
 };
 
 // Clics globaux (votes et ouverture d'une inspi)
-document.addEventListener('click',e=>{const b=e.target.closest('[data-vote],[data-open],[data-newinspi],#moiOk');if(!b)return;
+document.addEventListener('click',e=>{
+  const dots=e.target.closest('[data-dots]');
+  if(!dots&&!e.target.closest('.pop')){document.querySelectorAll('.pop.open').forEach(p=>p.classList.remove('open'));DELCONF=null}
+  const b=e.target.closest('[data-vote],[data-newinspi],[data-dots],[data-mod],[data-sup],#moiOk');if(!b)return;
+  if(b.dataset.dots){e.stopPropagation();const p=document.getElementById('pop-'+b.dataset.dots);const was=p.classList.contains('open');document.querySelectorAll('.pop.open').forEach(x=>x.classList.remove('open'));DELCONF=null;if(!was)p.classList.add('open');return}
+  if(b.dataset.mod){formInspi(LIST.find(x=>x.id===b.dataset.mod));return}
+  if(b.dataset.sup){const id=b.dataset.sup;if(DELCONF!==id){DELCONF=id;b.textContent='Confirmer ?';return}
+    LIST=LIST.filter(x=>x.id!==id);DELCONF=null;keep();if(window.FB)window.FB.delInspi(id);toast('Supprimé');refresh();return}
   if(b.id==='moiOk'&&!sheet.classList.contains('open')){const v=document.getElementById('moiIn').value.trim();if(!v){toast('Écris ton prénom');return}try{localStorage.setItem('moi',v)}catch(e){}refresh();return}
   if(b.dataset.newinspi!==undefined&&!sheet.classList.contains('open')){formInspi(null,b.dataset.newinspi);return}
   if(b.dataset.vote){const [id,v]=b.dataset.vote.split('/');const me=moi();if(!me){toast('Dis d’abord qui tu es');return}
     const it=LIST.find(x=>x.id===id);if(!it)return;it.votes=it.votes||{};it.votes[me]=(it.votes[me]===+v)?0:+v;if(!it.votes[me])delete it.votes[me];
     if(window.FB)window.FB.saveInspi(it);const s=score(it);if(s.up>=2)toast('Coup de cœur à deux ♥');else if(s.down>=2)toast('Jeté');refresh();return}
-  if(b.dataset.open)formInspi(LIST.find(x=>x.id===b.dataset.open));
 });
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='moiIn'){const ok=document.getElementById('moiOk');if(ok)ok.click()}});
 
