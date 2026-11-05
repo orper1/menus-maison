@@ -280,7 +280,7 @@ const dowFR=v=>(new Date(v+'T12:00:00').getDay()+6)%7;
 // ---------- État synchronisé : S = état du menu en cours, M = la maison
 const D=window.MENU_DATA;
 const KEY='etat:'+D.titre,KEYM='maison:etat';
-const S0=()=>({cook:{},swap:{},pris:{},fini:{},extra:[],beteFait:{},beteMoi:[]});
+const S0=()=>({cook:{},swap:{},pris:{},fini:{},extra:[],beteFait:{},beteMoi:[],congel:{}});
 const M0=()=>({projets:[],budget:{revenus:0,charges:[],epargne:0,parMois:0},events:[],rappels:[],resa:[],cantine:{},params:{}});
 let S=S0(),M=M0();
 try{S=Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
@@ -291,7 +291,7 @@ const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(win
 const saveM=()=>{try{localStorage.setItem(KEYM,JSON.stringify(M))}catch(e){}if(window.syncSaveM)window.syncSaveM(M)};
 window.SYNC_KEY=D.titre;window.getState=()=>S;window.getM=()=>M;
 const typing=()=>{const ae=document.activeElement;return ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')&&!sheet.classList.contains('open')};
-window.applyRemote=data=>{if(!data)return;S=Object.assign(S0(),data);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(!typing())render()};
+window.applyRemote=data=>{if(!data)return;S=Object.assign(S0(),data);if(!S.congel)S.congel={};try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(!typing())render()};
 window.applyRemoteM=data=>{if(!data)return;M=deep(M0(),data);migrerResa();try{localStorage.setItem(KEYM,JSON.stringify(M))}catch(e){}if(!typing()&&!sheet.classList.contains('open'))render()};
 const toast=t=>{const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1600)};
 // ---------- Navigation + segments
@@ -308,7 +308,7 @@ const repasListe=test=>{const out=[];D.jours.forEach((j,i)=>['midi','soir'].forE
 const pasCuisine=()=>[...new Set(repasListe(v=>v==='non').map(x=>x.t))];
 const aConfirmer=()=>repasListe((v,j)=>v===undefined&&j.date<iso);
 const dejaCuisine=()=>{const out=[];D.jours.forEach((j,i)=>['midi','soir'].forEach(m=>{const k=i+'-'+m;if(S.cook[k]===true){const o=[j[m]].concat(j[m==='midi'?'altMidi':'altSoir']||[]);out.push(o[S.swap[k]||0])}}));return [...new Set(out)]};
-const platDu=(j,i,kind)=>{const base=j[kind];if(!base||base==='—')return null;const o=[base].concat(j[kind==='midi'?'altMidi':'altSoir']||[]);return {t:o[S.swap[i+'-'+kind]||0],cooked:!!S.cook[i+'-'+kind]}};
+const platDu=(j,i,kind)=>{const base=j[kind];if(!base||base==='—')return null;const o=[base].concat(j[kind==='midi'?'altMidi':'altSoir']||[]);return {t:o[S.swap[i+'-'+kind]||0],cooked:S.cook[i+'-'+kind]===true,non:S.cook[i+'-'+kind]==='non'}};
 // ---------- Rappels calculés (cantine à réserver, etc.)
 const semKey=v=>mondayOf(v);
 // Réservations : cantine, garderie, centres de vacances… chacune avec une date de couverture ou une date limite.
@@ -320,6 +320,24 @@ const resaEtat=r=>{if(r.avant&&!r.fait)return (r.avant<iso?'En retard · ':'')+'
 const resaAlertes=()=>(M.resa||[]).map(r=>{const k=resaKo(r);return k?r.t+' : '+k.toLowerCase():null}).filter(Boolean);
 const resaResume=()=>{const al=resaAlertes();if(al.length)return al.length+' à faire';const r=(M.resa||[]).filter(x=>x.jusqu).sort((a,b)=>a.jusqu<b.jusqu?-1:1)[0];return r?'Jusqu’au '+court(r.jusqu):'À renseigner'};
 
+// Congélateur : que faire des produits frais d'un repas non cuisiné, ou avant un départ.
+const FR=()=>D.frais||{};
+const prochaineAbsence=()=>{const a=D.jours.filter(j=>j.absent&&j.date>=iso);if(!a.length)return null;const deb=a[0].date;let fin=deb;a.forEach(j=>{if(j.date>fin&&addD(fin,1)>=j.date)fin=j.date});return {deb,fin}};
+function aCongeler(){
+  const F=FR(),abs=prochaineAbsence(),out={};
+  const add=(n,why)=>{const f=F[n];if(!f||!f.congel||S.congel[n])return;if(!out[n]||why.p>out[n].p)out[n]={t:n,dlc:f.dlc,why:why.t,p:why.p}};
+  D.jours.forEach((j,i)=>['midi','soir'].forEach(m=>{
+    const k=i+'-'+m,fr=j[m==='midi'?'fraisMidi':'fraisSoir'];if(!fr)return;
+    const nonFait=S.cook[k]==='non'||(S.cook[k]===undefined&&j.date<iso);
+    if(nonFait)fr.forEach(n=>add(n,{t:'pas cuisiné '+j.label.toLowerCase(),p:3}));
+    else if(abs&&j.date>=abs.deb&&j.date<=abs.fin)fr.forEach(n=>add(n,{t:'repas pendant l’absence',p:2}));
+  }));
+  if(abs&&abs.deb<=plusJ(2)){Object.keys(F).forEach(n=>{const f=F[n];
+    if(f.congel&&f.dlc&&f.dlc<=abs.fin&&!S.congel[n]){const used=D.jours.some((j,i)=>['midi','soir'].some(m=>{const fr=j[m==='midi'?'fraisMidi':'fraisSoir'];return fr&&fr.includes(n)&&(S.cook[i+'-'+m]!==true)}));
+      if(used)add(n,{t:'à consommer avant le '+court(f.dlc),p:1})}})}
+  return Object.values(out).sort((a,b)=>b.p-a.p);
+}
+const auCongel=()=>Object.keys(S.congel||{}).filter(n=>S.congel[n]);
 const rappelsDus=()=>M.rappels.filter(r=>!r.fait&&r.date&&r.date<=iso).sort((a,b)=>a.date<b.date?-1:1);
 const eventsJour=v=>M.events.filter(e=>e.date===v).sort((a,b)=>(a.heure||'')<(b.heure||'')?-1:1);
 // ---------- ACCUEIL
@@ -328,12 +346,16 @@ function renderHome(){
   let h='';
   resaAlertes().forEach(a=>h+='<div class="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg>'+esc(a)+'</div>');
   const dus=rappelsDus();if(dus.length)h+='<div class="alert" style="background:var(--butter);color:var(--butterInk)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 8a6 6 0 0 1 12 0v5l2 3H4l2-3z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>'+dus.length+' rappel'+(dus.length>1?'s':'')+' à faire : '+esc(dus.map(r=>r.t).slice(0,2).join(', '))+(dus.length>2?'…':'')+'</div>';
+  const cg=aCongeler(),abs=prochaineAbsence();
+  if(cg.length){h+='<div class="card tint sky"><h3 class="sec">À mettre au congélateur <span class="n">'+cg.length+'</span></h3>'+
+    (abs&&abs.deb<=plusJ(2)?'<p class="howto" style="margin:0 0 6px;color:var(--skyInk)">Vous partez '+esc(court(abs.deb))+' — à faire avant de partir.</p>':'<p class="howto" style="margin:0 0 6px;color:var(--skyInk)">Ces produits ne seront pas consommés à temps.</p>')+
+    cg.map(x=>'<div class="line"><div class="t"><b>'+esc(x.t)+'</b><small>'+esc(x.why)+(x.dlc&&x.why.indexOf('consommer')<0?' · à consommer avant le '+court(x.dlc):'')+'</small></div><button class="btn sm" data-congel="'+esc(x.t)+'">Congelé ✓</button></div>').join('')+'</div>'}
   const ac=aConfirmer();if(ac.length)h+='<div class="card tint butter"><h3 class="sec">Vous avez cuisiné ? <span class="n">'+ac.length+'</span></h3><p class="howto" style="margin:0 0 6px;color:var(--butterInk)">Ce qui n’a pas été fait pourra être reproposé au prochain menu.</p>'+ac.map(x=>'<div class="line"><div class="t"><b>'+esc(x.t)+'</b><small>'+esc(x.j.label)+'</small></div><button class="btn sm" data-cook="'+x.k+'">✓ Oui</button><button class="btn sm ghost" data-nocook="'+x.k+'">✕ Non</button></div>').join('')+'</div>';
   // Repas du jour
   const ji=D.jours.findIndex(j=>j.date===iso);const j=D.jours[ji];
   let repas='';
   if(j&&j.absent)repas='<p class="dish">'+esc(j.note||'Absents aujourd’hui')+'</p>';
-  else if(j){['midi','soir'].forEach(k=>{const p=platDu(j,ji,k);if(p)repas+='<span class="pill '+k+'">'+(k==='midi'?'Midi':'Ce soir')+'</span><p class="dish'+(p.cooked?' cooked':'')+'">'+(p.cooked?'✓ ':'')+esc(p.t)+'</p>'})}
+  else if(j){['midi','soir'].forEach(k=>{const p=platDu(j,ji,k);if(p)repas+='<span class="pill '+k+'">'+(k==='midi'?'Midi':'Ce soir')+'</span><p class="dish'+(p.cooked||p.non?' cooked':'')+'">'+(p.cooked?'✓ ':p.non?'✕ ':'')+esc(p.t)+'</p>'})}
   else repas='<p class="empty">Pas de menu prévu aujourd’hui. Onglet Repas → Nouveau menu.</p>';
   h+='<div class="card tap" data-go="repas/menus" role="button"><div class="head">'+mascot('repas')+'<div><h2>Au menu</h2><small>'+esc(D.titre)+'</small></div><b class="chev">›</b></div>'+repas+'</div>';
   // Aujourd'hui
@@ -356,7 +378,8 @@ function renderHome(){
   '</div>';
   document.getElementById('v-home').innerHTML=h;
 }
-document.addEventListener('click',e=>{const b=e.target.closest('[data-cook],[data-nocook]');if(!b)return;if(b.dataset.cook){const k=b.dataset.cook;S.cook[k]=S.cook[k]===true?undefined:true;if(S.cook[k]===undefined)delete S.cook[k]}else{const k=b.dataset.nocook;S.cook[k]=S.cook[k]==='non'?undefined:'non';if(S.cook[k]===undefined)delete S.cook[k]}save();render()});
+document.addEventListener('click',e=>{const c=e.target.closest('[data-congel]');if(c){S.congel[c.dataset.congel]=true;save();render();toast('Au congélateur ✓');return}
+  const b=e.target.closest('[data-cook],[data-nocook]');if(!b)return;if(b.dataset.cook){const k=b.dataset.cook;S.cook[k]=S.cook[k]===true?undefined:true;if(S.cook[k]===undefined)delete S.cook[k]}else{const k=b.dataset.nocook;S.cook[k]=S.cook[k]==='non'?undefined:'non';if(S.cook[k]===undefined)delete S.cook[k]}save();render()});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(!b)return;const inner=e.target.closest('button');if(inner&&inner!==b)return;const [v,k]=b.dataset.go.split('/');if(SEG[v]!==undefined)SEG[v]=k;document.querySelector('nav button[data-v='+v+']').click();render()});
 // ---------- REPAS
 let first=null;
@@ -380,7 +403,7 @@ function renderRepas(){
     h+='<article class="card'+(isToday?' today':'')+(past?' past':'')+(j.absent?' tint butter':'')+'" id="d'+i+'"><div class="head">'+svg(j.icon)+'<div><h2>'+esc(j.label)+'</h2>'+(isToday?'<small>Aujourd’hui</small>':'')+'</div></div>'+
     (j.absent?'<span class="pill abs">Absents</span><p class="dish">'+esc(j.note||'')+'</p>':meal(j,i,'midi')+meal(j,i,'soir'))+'</article>'});
     const nb=dejaCuisine().length,np=pasCuisine().length,na=aConfirmer().length;
-    h+='<div class="card tint lav"><h3 class="sec">Bilan du menu</h3><div class="row" style="margin-top:0"><span class="tag mint">'+nb+' cuisiné'+(nb>1?'s':'')+'</span><span class="tag pink">'+np+' pas fait'+(np>1?'s':'')+'</span><span class="tag butter">'+na+' à confirmer</span></div><p class="howto" style="margin:10px 0 0;color:var(--lavInk)">Les plats « pas faits » sont reproposés quand vous demandez le prochain menu.</p></div>';
+    h+='<div class="card tint lav"><h3 class="sec">Bilan du menu</h3><div class="row" style="margin-top:0"><span class="tag mint">'+nb+' cuisiné'+(nb>1?'s':'')+'</span><span class="tag pink">'+np+' pas fait'+(np>1?'s':'')+'</span><span class="tag butter">'+na+' à confirmer</span>'+(auCongel().length?'<span class="tag sky">'+auCongel().length+' au congélo</span>':'')+'</div><p class="howto" style="margin:10px 0 0;color:var(--lavInk)">Les plats « pas faits » sont reproposés quand vous demandez le prochain menu.</p></div>';
   }else h+=coursesHtml();
   document.getElementById('v-repas').innerHTML=h;
 }
@@ -499,7 +522,7 @@ const TAGS=['Plus de poisson','Un soir végé','Rapide en semaine','Plats à con
 function formMenu(){
   const P=Object.assign({pers:3,jours:10,debut:'',budget:150,restes:true,abs:'',envies:'',tags:[]},M.params||S.params||{});if(!Array.isArray(P.tags))P.tags=[];if(!P.debut||P.debut<iso)P.debut=plusJ(1);let autre=false;
   const demande=()=>{const items=listeRachat(),cuis=dejaCuisine(),env=P.tags.concat(P.envies?[P.envies]:[]);
-    return 'Nouveau menu pour la maison (projet Maison, drive Intermarché Marquette-lez-Lille).\n- Personnes : '+P.pers+'\n- Durée : '+P.jours+' jours à partir du '+joli(P.debut)+'\n- Budget frais : '+P.budget+' € (eau, lait et épicerie à part)\n'+(P.restes?'- Midis en semaine : restes pour 1 adulte\n':'')+(P.abs?'- Absences : '+P.abs+'\n':'')+(env.length?'- Envies / à éviter : '+env.join(' ; ')+'\n':'')+'\nÀ racheter (plus à la maison) : '+(items.length?items.join(', '):'rien de noté')+'\nDéjà cuisiné cette période : '+(cuis.length?cuis.join(', '):'—')+'\nPrévus mais pas cuisinés (à reproposer en priorité) : '+(pasCuisine().length?pasCuisine().join(', '):'—')+'\n\nMêmes règles que d’habitude : prix au kilo, promos, marques Intermarché OK, pas de discount. Remplis le panier drive et mets à jour data.js de l’app.'};
+    return 'Nouveau menu pour la maison (projet Maison, drive Intermarché Marquette-lez-Lille).\n- Personnes : '+P.pers+'\n- Durée : '+P.jours+' jours à partir du '+joli(P.debut)+'\n- Budget frais : '+P.budget+' € (eau, lait et épicerie à part)\n'+(P.restes?'- Midis en semaine : restes pour 1 adulte\n':'')+(P.abs?'- Absences : '+P.abs+'\n':'')+(env.length?'- Envies / à éviter : '+env.join(' ; ')+'\n':'')+'\nÀ racheter (plus à la maison) : '+(items.length?items.join(', '):'rien de noté')+'\nDéjà cuisiné cette période : '+(cuis.length?cuis.join(', '):'—')+'\nPrévus mais pas cuisinés (à reproposer en priorité) : '+(pasCuisine().length?pasCuisine().join(', '):'—')+'\nMis au congélateur, à réutiliser en premier : '+(auCongel().length?auCongel().join(', '):'—')+'\n\nRègles pour les courses : ne pas racheter ce qui est au congélateur, et prévoir les repas en tenant compte des dates limites (le frais en début de période, le congelé après une absence).\nMêmes règles que d’habitude : prix au kilo, promos, marques Intermarché OK, pas de discount. Remplis le panier drive et mets à jour data.js de l’app.'};
   const keep=()=>{M.params=JSON.parse(JSON.stringify(P));saveM()};
   openSheet({title:'Nouveau menu',body:()=>{const dates=[['Aujourd’hui',plusJ(0)],['Demain',plusJ(1)],['Lundi prochain',lundi()]];const known=dates.some(x=>x[1]===P.debut);const items=listeRachat(),cuis=dejaCuisine();
     return '<div class="field duo"><div><p>Personnes</p><div class="stepper"><button data-step="pers/-1">−</button><output>'+P.pers+'</output><button data-step="pers/1">+</button></div></div><div><p>Jours</p><div class="stepper"><button data-step="jours/-1">−</button><output>'+P.jours+'</output><button data-step="jours/1">+</button></div></div></div>'+
@@ -508,7 +531,7 @@ function formMenu(){
     F.sw('sRestes','Restes pour un midi adulte en semaine',P.restes)+
     '<div class="field"><p>Envies</p><div class="chips">'+TAGS.map(t=>'<button class="chip'+(P.tags.includes(t)?' on':'')+'" data-tag="'+esc(t)+'">'+esc(t)+'</button>').join('')+'</div><textarea id="sEnvies" rows="2" placeholder="Autre envie, ou à éviter (ex. pas de riz)" style="margin-top:10px">'+esc(P.envies)+'</textarea></div>'+
     F.area('sAbs','Absences, repas dehors',P.abs,'ex. absents le week-end du 14')+
-    '<div class="field recap"><b>Claude reçoit aussi :</b><br>• À racheter ('+items.length+') : '+(items.length?esc(items.join(', ')):'rien')+'<br>• Déjà cuisiné ('+cuis.length+') : '+(cuis.length?esc(cuis.join(', ')):'rien')+'<br>• Pas cuisiné, à reproposer ('+pasCuisine().length+') : '+(pasCuisine().length?esc(pasCuisine().join(', ')):'rien')+(aConfirmer().length?'<br><b>'+aConfirmer().length+' repas passés sans réponse</b> : dis sur l’accueil si vous les avez cuisinés.':'')+'</div>'+
+    '<div class="field recap"><b>Claude reçoit aussi :</b><br>• À racheter ('+items.length+') : '+(items.length?esc(items.join(', ')):'rien')+'<br>• Déjà cuisiné ('+cuis.length+') : '+(cuis.length?esc(cuis.join(', ')):'rien')+'<br>• Pas cuisiné, à reproposer ('+pasCuisine().length+') : '+(pasCuisine().length?esc(pasCuisine().join(', ')):'rien')+'<br>• Au congélateur ('+auCongel().length+') : '+(auCongel().length?esc(auCongel().join(', ')):'rien')+(aConfirmer().length?'<br><b>'+aConfirmer().length+' repas passés sans réponse</b> : dis sur l’accueil si vous les avez cuisinés.':'')+'</div>'+
     '<div class="sheet-bot"><button class="big" id="genBtn">Demander à Claude</button><button class="btn" id="genCopy">Copier</button></div>'},
   onClick:async b=>{if(b.dataset.step){const [k,d]=b.dataset.step.split('/');P[k]=Math.max(k==='budget'?0:1,(+P[k]||0)+(+d))}
     else if(b.dataset.date){if(b.dataset.date==='autre')autre=true;else{autre=false;P.debut=b.dataset.date}}
