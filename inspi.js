@@ -19,8 +19,8 @@ const CSS=`
 .insp .vt button.like.me{background:var(--pink);color:var(--pinkInk);border-color:var(--pinkInk)}
 .insp .vt button span{font-size:12px;opacity:.8}
 .insp{position:relative}
-.dots{position:absolute;top:8px;right:8px;z-index:3;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.94);box-shadow:0 1px 6px rgba(30,27,46,.2);display:flex;align-items:center;justify-content:center;gap:3px;padding:0}
-.dots i{width:4px;height:4px;border-radius:50%;background:var(--ink);display:block}
+.kebab{position:absolute;top:8px;right:8px;z-index:3;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.94);box-shadow:0 1px 6px rgba(30,27,46,.2);display:flex;align-items:center;justify-content:center;gap:3px;padding:0}
+.kebab i{width:4px;height:4px;border-radius:50%;background:var(--ink);display:block;animation:none}
 .pop{position:absolute;top:44px;right:8px;z-index:4;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 24px rgba(30,27,46,.18);overflow:hidden;display:none;min-width:150px}
 .pop.open{display:block}
 .pop a,.pop button{display:block;width:100%;text-align:left;padding:11px 14px;font:800 14px Nunito,sans-serif;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line);background:#fff}
@@ -65,7 +65,7 @@ function visu(it){
 function card(it){
   const s=score(it),me=moi(),mv=(it.votes||{})[me]||0,del=DELCONF===it.id;
   return '<div class="insp '+etat(it)+'">'+visu(it)+
-  '<button class="dots" data-dots="'+it.id+'" aria-label="Options"><i></i><i></i><i></i></button>'+
+  '<button class="kebab" data-dots="'+it.id+'" aria-label="Options"><i></i><i></i><i></i></button>'+
   '<div class="pop" id="pop-'+it.id+'">'+(it.lien?'<a href="'+esc(it.lien)+'" target="_blank" rel="noopener">Ouvrir le lien ↗</a>':'')+
   '<button data-mod="'+it.id+'">Modifier</button><button class="sup" data-sup="'+it.id+'">'+(del?'Confirmer ?':'Supprimer')+'</button></div>'+
   '<div class="bd">'+(it.lien?'<a href="'+esc(it.lien)+'" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><b>'+esc(it.t||dom(it.lien))+'</b></a>':'<b>'+esc(it.t||'Inspi')+'</b>')+(it.note?'<small>'+esc(it.note)+'</small>':'')+'</div>'+
