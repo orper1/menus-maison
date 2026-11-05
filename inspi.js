@@ -1,4 +1,4 @@
-// Inspirations rattachées aux projets. Chacun vote : 2 ♥ = coup de cœur, 2 ✕ = jeté.
+// Inspirations rattachées aux projets. Chacun vote : 2 ♥︎ = coup de cœur, 2 ✕︎ = jeté.
 (()=>{
 const CSS=`
 .insp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
@@ -7,8 +7,9 @@ const CSS=`
 .insp.jete{opacity:.5}
 .vis{position:relative;width:100%;aspect-ratio:4/5;background:var(--seg)}
 .vis .im{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
-.vis .lk{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;background:var(--lav);color:var(--lavInk);font-weight:900;font-size:13px;text-align:center;padding:12px;line-height:1.3}
-.vis .lk svg{width:32px;height:32px}
+.vis .lk{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;background:linear-gradient(150deg,#FFE7D6,#F3DCFF 55%,#D9E4FF);color:var(--ink);font-weight:900;font-size:13px;text-align:center;padding:12px;line-height:1.3}
+.vis .lk svg{width:30px;height:30px;opacity:.75}
+.vis .lk .add{position:relative;z-index:3;border:1.5px solid var(--ink);background:rgba(255,255,255,.9);border-radius:999px;padding:6px 12px;font:800 12px Nunito,sans-serif;color:var(--ink)}
 .insp .bd{padding:10px 10px 8px;flex:1}
 .insp .bd b{display:block;font-size:14px;line-height:1.25}
 .insp .bd small{display:block;font-size:12px;color:var(--soft);font-weight:700;margin-top:2px}
@@ -18,7 +19,8 @@ const CSS=`
 .insp .vt button.like.me{background:var(--pink);color:var(--pinkInk);border-color:var(--pinkInk)}
 .insp .vt button span{font-size:12px;opacity:.8}
 .insp{position:relative}
-.dots{position:absolute;top:8px;right:8px;z-index:3;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.94);box-shadow:0 1px 6px rgba(30,27,46,.2);font:900 16px Nunito,sans-serif;line-height:1;color:var(--ink);letter-spacing:1px}
+.dots{position:absolute;top:8px;right:8px;z-index:3;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.94);box-shadow:0 1px 6px rgba(30,27,46,.2);display:flex;align-items:center;justify-content:center;gap:3px;padding:0}
+.dots i{width:4px;height:4px;border-radius:50%;background:var(--ink);display:block}
 .pop{position:absolute;top:44px;right:8px;z-index:4;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 24px rgba(30,27,46,.18);overflow:hidden;display:none;min-width:150px}
 .pop.open{display:block}
 .pop a,.pop button{display:block;width:100%;text-align:left;padding:11px 14px;font:800 14px Nunito,sans-serif;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line);background:#fff}
@@ -47,31 +49,32 @@ const etat=it=>{const s=score(it);if(s.up>=2)return 'coeur';if(s.down>=2)return 
 const dom=u=>{try{const h=new URL(u).hostname.replace(/^www\./,'');return h.includes('instagram')?'Instagram':h.includes('pinterest')?'Pinterest':h.includes('tiktok')?'TikTok':h.includes('youtu')?'YouTube':h}catch(e){return 'Lien'}};
 // Instagram sert l'image d'un post public sur /media/ ; si c'est bloqué, on retombe sur la tuile.
 const insta=u=>{const m=/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/.exec(u||'');return m?'https://www.instagram.com/p/'+m[1]+'/media/?size=m':''};
+const yt=u=>{const m=/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([A-Za-z0-9_-]{6,})/.exec(u||'');return m?'https://img.youtube.com/vi/'+m[1]+'/hqdefault.jpg':''};
 const LINKSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
-const apercu=it=>it.img||insta(it.lien);
+const apercu=it=>it.img||yt(it.lien)||insta(it.lien);
 const sorted=xs=>xs.slice().sort((a,b)=>{const r={coeur:0,ouvert:1,jete:2};return (r[etat(a)]-r[etat(b)])||((b.ts||0)-(a.ts||0))});
 let DELCONF=null;
 const refresh=()=>{keep();if(window.refreshAll)refreshAll();else render()};
 
 function visu(it){
   const u=apercu(it);
-  return '<div class="vis"><div class="lk">'+LINKSVG+esc(dom(it.lien||''))+'</div>'+
+  return '<div class="vis"><div class="lk">'+LINKSVG+esc(dom(it.lien||''))+'<button class="add" data-photo="'+it.id+'">+ Photo</button></div>'+
   (u?'<img class="im" src="'+esc(u)+'" alt="" referrerpolicy="no-referrer" onerror="this.remove()">':'')+
   (it.lien?'<a class="zone" href="'+esc(it.lien)+'" target="_blank" rel="noopener" aria-label="Ouvrir le lien"></a>':'')+'</div>';
 }
 function card(it){
   const s=score(it),me=moi(),mv=(it.votes||{})[me]||0,del=DELCONF===it.id;
   return '<div class="insp '+etat(it)+'">'+visu(it)+
-  '<button class="dots" data-dots="'+it.id+'" aria-label="Options">⋯</button>'+
+  '<button class="dots" data-dots="'+it.id+'" aria-label="Options"><i></i><i></i><i></i></button>'+
   '<div class="pop" id="pop-'+it.id+'">'+(it.lien?'<a href="'+esc(it.lien)+'" target="_blank" rel="noopener">Ouvrir le lien ↗</a>':'')+
   '<button data-mod="'+it.id+'">Modifier</button><button class="sup" data-sup="'+it.id+'">'+(del?'Confirmer ?':'Supprimer')+'</button></div>'+
   '<div class="bd">'+(it.lien?'<a href="'+esc(it.lien)+'" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><b>'+esc(it.t||dom(it.lien))+'</b></a>':'<b>'+esc(it.t||'Inspi')+'</b>')+(it.note?'<small>'+esc(it.note)+'</small>':'')+'</div>'+
-  '<div class="vt"><button class="like'+(mv>0?' me':'')+'" data-vote="'+it.id+'/1">♥ <span>'+s.up+'</span></button><button class="'+(mv<0?'me':'')+'" data-vote="'+it.id+'/-1">✕ <span>'+s.down+'</span></button></div></div>';
+  '<div class="vt"><button class="like'+(mv>0?' me':'')+'" data-vote="'+it.id+'/1">♥︎ <span>'+s.up+'</span></button><button class="'+(mv<0?'me':'')+'" data-vote="'+it.id+'/-1">✕︎ <span>'+s.down+'</span></button></div></div>';
 }
 // Bandeau de vignettes sur la carte d'un projet
 window.inspiStrip=pid=>{const xs=sorted(LIST.filter(x=>x.projet===pid));if(!xs.length)return '';
   return '<div class="strip">'+xs.slice(0,6).map(it=>{const u=apercu(it),s=score(it);
-    return '<span class="th">'+(u?'<img src="'+esc(u)+'" alt="" referrerpolicy="no-referrer" onerror="this.remove()">':'')+LINKSVG+(s.up>=2?'<b>♥</b>':'')+'</span>'}).join('')+
+    return '<span class="th">'+(u?'<img src="'+esc(u)+'" alt="" referrerpolicy="no-referrer" onerror="this.remove()">':'')+LINKSVG+(s.up>=2?'<b>♥︎</b>':'')+'</span>'}).join('')+
     (xs.length>6?'<span class="th" style="background:var(--seg);color:var(--soft);font-weight:900">+'+(xs.length-6)+'</span>':'')+'</div>'};
 window.inspiCount=pid=>LIST.filter(x=>x.projet===pid).length;
 // Inspis sans projet, en bas de l'onglet Projets
@@ -89,13 +92,13 @@ window.ficheProjet=function(p){
     h+='<div class="field" style="margin-top:14px"><button class="btn" data-editpj="'+p.id+'">Modifier le projet</button></div>';
     if(!moi())h+='<div class="card tint butter"><h3 class="sec">C’est qui, ce téléphone ?</h3><p class="howto" style="margin:0 0 8px">Pour compter les votes à deux. Une fois par téléphone.</p><div class="add"><input id="moiIn" placeholder="Ton prénom"><button class="btn" id="moiOk">OK</button></div></div>';
     h+='<div class="insp-sec"><h3>Inspirations</h3><span class="n" style="font-size:12px;font-weight:800;background:var(--seg);border-radius:999px;padding:2px 9px;color:var(--soft)">'+xs.length+'</span><button class="btn sm" data-newinspi="'+p.id+'">+ Ajouter</button></div>';
-    h+=xs.length?'<div class="insp-grid">'+xs.map(card).join('')+'</div>':'<p class="howto">Ajoute une photo, une capture ou un lien Insta. Avec 2 ♥ ça passe en coup de cœur, avec 2 ✕ c’est jeté.</p>';
+    h+=xs.length?'<div class="insp-grid">'+xs.map(card).join('')+'</div>':'<p class="howto">Ajoute une photo, une capture ou un lien Insta. Avec 2 ♥︎ ça passe en coup de cœur, avec 2 ✕︎ c’est jeté.</p>';
     return h},
   onClick:b=>{
     if(b.id==='moiOk'){const v=g('moiIn').value.trim();if(!v){toast('Écris ton prénom');return false}try{localStorage.setItem('moi',v)}catch(e){}return}
     if(b.dataset.editpj){formProjet(p);return false}
     if(b.dataset.newinspi!==undefined){formInspi(null,b.dataset.newinspi);return false}
-    if(b.dataset.vote||b.dataset.dots||b.dataset.mod||b.dataset.sup)return false;
+    if(b.dataset.vote||b.dataset.dots||b.dataset.mod||b.dataset.sup||b.dataset.photo)return false;
     return false}});
 };
 
@@ -103,7 +106,8 @@ window.ficheProjet=function(p){
 document.addEventListener('click',e=>{
   const dots=e.target.closest('[data-dots]');
   if(!dots&&!e.target.closest('.pop')){document.querySelectorAll('.pop.open').forEach(p=>p.classList.remove('open'));DELCONF=null}
-  const b=e.target.closest('[data-vote],[data-newinspi],[data-dots],[data-mod],[data-sup],#moiOk');if(!b)return;
+  const b=e.target.closest('[data-vote],[data-newinspi],[data-dots],[data-mod],[data-sup],[data-photo],#moiOk');if(!b)return;
+  if(b.dataset.photo){e.preventDefault();formInspi(LIST.find(x=>x.id===b.dataset.photo));setTimeout(()=>{const f=document.getElementById('iFile');if(f)f.click()},120);return}
   if(b.dataset.dots){e.stopPropagation();const p=document.getElementById('pop-'+b.dataset.dots);const was=p.classList.contains('open');document.querySelectorAll('.pop.open').forEach(x=>x.classList.remove('open'));DELCONF=null;if(!was)p.classList.add('open');return}
   if(b.dataset.mod){formInspi(LIST.find(x=>x.id===b.dataset.mod));return}
   if(b.dataset.sup){const id=b.dataset.sup;if(DELCONF!==id){DELCONF=id;b.textContent='Confirmer ?';return}
@@ -143,4 +147,6 @@ window.formInspi=function(it,pid){
 
 // Synchro Firestore : une fiche par inspiration (maisons/{code}/inspi/{id})
 window.applyInspi=list=>{LIST=list;keep();if(!sheet.classList.contains('open'))render()};
+// inspi.js est chargé après le premier rendu : on redessine pour afficher les inspirations.
+render();
 })();
